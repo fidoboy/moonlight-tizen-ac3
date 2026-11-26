@@ -1,13 +1,20 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:MoonlightTizenInstaller"
         x:Class="MoonlightTizenInstaller.MainWindow"
         Width="900" Height="720"
         MinWidth="760" MinHeight="640"
-        Background="#080D19"
+        Background="Transparent"
+        TransparencyLevelHint="Transparent"
+        WindowStartupLocation="CenterScreen"
         Foreground="#F5F8FF"
-        Title="Moonlight for Tizen Installer">
+        Title="Moonlight for Tizen Installer"
+        SystemDecorations="None"
+        ShowInTaskbar="True">
+  <Border Margin="12" CornerRadius="12" Background="Transparent" BoxShadow="0 5 24 0 #A0000000">
+  <Border CornerRadius="12" BorderBrush="#40516D" BorderThickness="1" Background="#080D19" ClipToBounds="True">
   <Grid RowDefinitions="Auto,Auto,*,Auto">
-    <Border Grid.Row="0" Padding="30,22"
+    <Border Grid.Row="0" Padding="30,22" PointerPressed="OnTitleBarPointerPressed"
             BorderBrush="#26344C" BorderThickness="0,0,0,1">
       <Border.Background>
         <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
@@ -16,10 +23,12 @@
           <GradientStop Color="#0A1020" Offset="1" />
         </LinearGradientBrush>
       </Border.Background>
-      <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-        <Image Name="MoonlightBrandLogo" Width="104" Height="104" Stretch="Uniform" Margin="0,0,18,0" />
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
-          <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="43"
+      <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" Background="Transparent">
+        <local:StarFieldControl Grid.ColumnSpan="3" IsHitTestVisible="False" Opacity="0.9" />
+        <Image Name="MoonlightBrandLogo" Width="72" Height="72" Stretch="Uniform" Margin="0,0,18,0" />
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="3"
+                    Background="Transparent">
+          <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="50"
                      FontWeight="ExtraBold">
             <TextBlock.Foreground>
               <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
@@ -30,8 +39,23 @@
             </TextBlock.Foreground>
           </TextBlock>
           <TextBlock Text="Enhanced version · with Dolby Digital audio support"
-                     FontFamily="Inter" FontSize="14" Foreground="#ACBAD0"
+                     FontFamily="Inter" FontSize="12" Foreground="#ACBAD0"
                      HorizontalAlignment="Right" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top"
+                    HorizontalAlignment="Right" Spacing="2" Margin="0,-12,-16,0">
+          <Button Width="36" Height="36" Padding="0" Classes="window-control"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                  Click="OnMinimizeClick">
+            <Border Width="14" Height="2" Background="#D6E1F2"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Button>
+          <Button Width="36" Height="36" Padding="0" Classes="window-control"
+                  HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                  Click="OnWindowCloseClick">
+            <Path Data="M 4,4 L 12,12 M 12,4 L 4,12" Width="12" Height="12" Stretch="Uniform"
+                  Stroke="#D6E1F2" StrokeThickness="1.4" />
+          </Button>
         </StackPanel>
       </Grid>
     </Border>
@@ -39,35 +63,39 @@
     <Border Grid.Row="1" Padding="28,18" Background="#0B1323"
             BorderBrush="#26344C" BorderThickness="0,0,0,1">
       <Grid ColumnDefinitions="*,*,*,*,*">
-        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <Border Name="StepConnector1" Grid.Column="0" Grid.ColumnSpan="2" Height="3" Margin="84,16,84,0" VerticalAlignment="Top" Background="#40516D" />
+        <Border Name="StepConnector2" Grid.Column="1" Grid.ColumnSpan="2" Height="3" Margin="84,16,84,0" VerticalAlignment="Top" Background="#40516D" />
+        <Border Name="StepConnector3" Grid.Column="2" Grid.ColumnSpan="2" Height="3" Margin="84,16,84,0" VerticalAlignment="Top" Background="#40516D" />
+        <Border Name="StepConnector4" Grid.Column="3" Grid.ColumnSpan="2" Height="3" Margin="84,16,84,0" VerticalAlignment="Top" Background="#40516D" />
+        <StackPanel Grid.Column="0" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator1" Width="32" Height="32" CornerRadius="16" Background="#78B8FF" BorderBrush="#78B8FF" BorderThickness="1">
             <TextBlock Name="StepNumber1" Text="1" Foreground="#071224" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBlock Name="StepLabel1" Text="Inicio" Foreground="#F5F8FF" FontWeight="SemiBold" VerticalAlignment="Center" />
+          <TextBlock Name="StepLabel1" HorizontalAlignment="Center" Text="Inicio" Foreground="#F5F8FF" FontWeight="SemiBold" VerticalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <StackPanel Grid.Column="1" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator2" Width="32" Height="32" CornerRadius="16" Background="#14213A" BorderBrush="#40516D" BorderThickness="1">
             <TextBlock Name="StepNumber2" Text="2" Foreground="#ACBAD0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBlock Name="StepLabel2" Text="Televisor" Foreground="#ACBAD0" VerticalAlignment="Center" />
+          <TextBlock Name="StepLabel2" HorizontalAlignment="Center" Text="Televisor" Foreground="#ACBAD0" VerticalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <StackPanel Grid.Column="2" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator3" Width="32" Height="32" CornerRadius="16" Background="#14213A" BorderBrush="#40516D" BorderThickness="1">
             <TextBlock Name="StepNumber3" Text="3" Foreground="#ACBAD0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBlock Name="StepLabel3" Text="Conexión" Foreground="#ACBAD0" VerticalAlignment="Center" />
+          <TextBlock Name="StepLabel3" HorizontalAlignment="Center" Text="Conexión" Foreground="#ACBAD0" VerticalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <StackPanel Grid.Column="3" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator4" Width="32" Height="32" CornerRadius="16" Background="#14213A" BorderBrush="#40516D" BorderThickness="1">
             <TextBlock Name="StepNumber4" Text="4" Foreground="#ACBAD0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBlock Name="StepLabel4" Text="Certificado" Foreground="#ACBAD0" VerticalAlignment="Center" />
+          <TextBlock Name="StepLabel4" HorizontalAlignment="Center" Text="Certificado" Foreground="#ACBAD0" VerticalAlignment="Center" />
         </StackPanel>
-        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="9" HorizontalAlignment="Center">
+        <StackPanel Grid.Column="4" Orientation="Vertical" Spacing="5" HorizontalAlignment="Center">
           <Border Name="StepIndicator5" Width="32" Height="32" CornerRadius="16" Background="#14213A" BorderBrush="#40516D" BorderThickness="1">
             <TextBlock Name="StepNumber5" Text="5" Foreground="#ACBAD0" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Border>
-          <TextBlock Name="StepLabel5" Text="Instalación" Foreground="#ACBAD0" VerticalAlignment="Center" />
+          <TextBlock Name="StepLabel5" HorizontalAlignment="Center" Text="Instalación" Foreground="#ACBAD0" VerticalAlignment="Center" />
         </StackPanel>
       </Grid>
     </Border>
@@ -77,10 +105,27 @@
         <StackPanel Name="WelcomePage" Spacing="18" IsVisible="True">
           <TextBlock Text="ASISTENTE DE INSTALACIÓN" Foreground="#A7D3FF"
                      FontSize="12" FontWeight="Bold" />
-          <TextBlock Text="Instala Moonlight en tu Samsung TV."
+          <TextBlock Text="Instala Moonlight en tu TV con TizenOS."
                      FontSize="32" FontWeight="Bold" FontFamily="Inter" TextWrapping="Wrap" />
-          <TextBlock Text="Este asistente detectará tu televisor y utilizará primero TV-Store cuando esté disponible. Si no es posible completar la instalación por esa vía, continuará automáticamente mediante SDB."
-                     FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730" />
+          <TextBlock Text="Este asistente detectará tu televisor y te guiará durante la instalación de Moonlight."
+                     FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730" Margin="0" />
+          <Border Name="LanguageSelectionPanel" IsVisible="False" Background="#14213A"
+                  BorderBrush="#3E94F5" BorderThickness="1" CornerRadius="12"
+                  Padding="16" MaxWidth="730" HorizontalAlignment="Stretch">
+            <StackPanel Spacing="8">
+              <TextBlock Name="LanguageSelectionLabel" Text="Select the installer language" FontWeight="SemiBold" />
+              <ComboBox Name="LanguageSelection" SelectedIndex="-1" MinWidth="260"
+                        HorizontalAlignment="Left" SelectionChanged="OnLanguageSelectionChanged">
+                <ComboBoxItem Content="English (United States)" />
+                <ComboBoxItem Content="Deutsch" />
+                <ComboBoxItem Content="Español" />
+                <ComboBoxItem Content="Français" />
+                <ComboBoxItem Content="Italiano" />
+                <ComboBoxItem Content="Português (Brasil)" />
+                <ComboBoxItem Content="Русский" />
+              </ComboBox>
+            </StackPanel>
+          </Border>
           <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
                   CornerRadius="16" Padding="22" Margin="0,10,0,0">
             <StackPanel Spacing="10">
@@ -89,8 +134,6 @@
                          Foreground="#D6E1F2" TextWrapping="Wrap" />
               <TextBlock Text="• Si Developer Mode aún no está activado, el asistente te mostrará cómo hacerlo y qué dirección IP debes introducir."
                          Foreground="#D6E1F2" TextWrapping="Wrap" />
-              <TextBlock Text="• No necesitas introducir manualmente el DUID ni gestionar certificados existentes."
-                         Foreground="#D6E1F2" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
         </StackPanel>
@@ -98,8 +141,8 @@
         <StackPanel Name="TelevisionPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 2 · TELEVISOR" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Text="Buscando tu Samsung TV" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="Se detectan automáticamente los televisores de la red local. No se solicitará el DUID manualmente."
+          <TextBlock Text="Buscando tu TV con TizenOS" FontSize="28" FontWeight="Bold" />
+          <TextBlock Text="Los televisores de la red local se detectan automáticamente."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
           <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
             <ProgressBar IsIndeterminate="True" Height="6" />
@@ -127,18 +170,6 @@
               </StackPanel>
             </Border>
           </StackPanel>
-          <StackPanel Name="TelevisionSelectionPanel" Spacing="8" IsVisible="False">
-            <TextBlock Name="TelevisionSelectionPrompt"
-                       Text="Se han detectado varios televisores. Selecciona el que quieras utilizar:"
-                       TextWrapping="Wrap" />
-            <ComboBox Name="TelevisionSelection">
-              <ComboBox.ItemTemplate>
-                <DataTemplate>
-                  <TextBlock Text="{Binding DisplayName}" />
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-          </StackPanel>
           <TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Foreground="#ACBAD0" />
         </StackPanel>
 
@@ -146,19 +177,69 @@
           <TextBlock Text="PASO 3 · CONEXIÓN" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
           <TextBlock Text="Conexión con el televisor" FontSize="28" FontWeight="Bold" />
-          <TextBlock Name="ConnectionSummary" Text="Comprobando la vía de instalación disponible…"
+          <TextBlock Name="ConnectionSummary" Text="Pulsa «Instalar» cuando estés listo para comenzar."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
+          <ListBox Name="TelevisionCards" IsVisible="False" SelectionMode="Single"
+                   HorizontalAlignment="Stretch"
+                   Background="Transparent" BorderThickness="0"
+                   SelectionChanged="OnTelevisionSelectionChanged">
+            <ListBox.Styles>
+              <Style Selector="ListBoxItem">
+                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderBrush" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="Padding" Value="0" />
+                <Setter Property="Margin" Value="0" />
+                <!-- Replace the platform item template: its default container paints a
+                     rectangular hover/selection surface behind the rounded device card. -->
+                <Setter Property="Template">
+                  <ControlTemplate>
+                    <ContentPresenter Content="{TemplateBinding Content}"
+                                      ContentTemplate="{TemplateBinding ContentTemplate}"
+                                      HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                      VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
+                  </ControlTemplate>
+                </Setter>
+              </Style>
+            </ListBox.Styles>
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Border Background="#14213A" BorderBrush="#FFFFFF" BorderThickness="1"
+                        CornerRadius="10" Padding="22,14,14,14" Margin="0">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                    <Path Data="M 3,4 L 21,4 L 21,17 L 3,17 Z M 9,21 L 15,21 M 12,17 L 12,21"
+                          Width="28" Height="28" Stretch="Uniform"
+                          Stroke="#A7D3FF" StrokeThickness="1.8"
+                          StrokeLineCap="Round"
+                          VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding FriendlyName}" FontSize="16" FontWeight="SemiBold"
+                                 Foreground="#F5F8FF" />
+                      <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding IpAddress}" FontSize="13" Foreground="#ACBAD0"
+                                   VerticalAlignment="Center" />
+                        <Border Width="8" Height="8" CornerRadius="4" Background="#35C978"
+                                VerticalAlignment="Center" />
+                        <TextBlock Text="Preparado" FontSize="12" Foreground="#35C978"
+                                   VerticalAlignment="Center" />
+                      </StackPanel>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
           <StackPanel Name="TvStoreHandoffPanel" Spacing="12" IsVisible="False">
             <Border Background="#101A2D" BorderBrush="#3E94F5" BorderThickness="1"
                     CornerRadius="12" Padding="20">
               <StackPanel Spacing="12">
-                <TextBlock Text="Moonlight se ha enviado a TV-Store" FontSize="20" FontWeight="SemiBold" />
-                <TextBlock Name="TvStoreHandoffStatus" TextWrapping="Wrap" />
-                <TextBlock Text="En la pantalla del televisor debe aparecer la solicitud de instalación. Selecciona «Instalar» y acepta la confirmación de TV-Store."
+                <TextBlock Text="Completa la instalación en el televisor" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Name="TvStoreHandoffStatus"
+                           Text="Pulsa «Aceptar» en el mensaje de confirmación que aparece en el televisor."
                            TextWrapping="Wrap" Foreground="#ACBAD0" />
                 <StackPanel Orientation="Horizontal" Spacing="10">
                   <Button Name="FinishTvStoreHandoffButton" Content="Finalizar" Classes="primary" />
-                  <Button Name="ContinueWithSdbButton" Content="Continuar mediante SDB" />
                 </StackPanel>
               </StackPanel>
             </Border>
@@ -166,39 +247,96 @@
         </StackPanel>
 
         <StackPanel Name="CertificatePage" Spacing="14" IsVisible="False">
-          <TextBlock Text="PASO 4 · CERTIFICADO" Foreground="#A7D3FF" FontSize="12"
+          <TextBlock Name="CertificateStepLabel" Text="PASO 4 · CERTIFICADO" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Text="Preparar la firma de Samsung" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="El instalador reutiliza automáticamente un certificado Partner válido guardado de una ejecución anterior. Solo abrirá Samsung si hace falta crear uno o renovarlo."
-                     Foreground="#ACBAD0" TextWrapping="Wrap" />
-          <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
+          <TextBlock Name="CertificatePageTitle" Text="Preparar el certificado de instalación" FontSize="28" FontWeight="Bold" />
+          <Border Name="CertificateNormalPanel" Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
                   CornerRadius="12" Padding="20">
             <StackPanel Spacing="12">
-              <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Foreground="#D6E1F2" />
+              <TextBlock Text="Como es la primera vez que instalas Moonlight desde este ordenador, necesitas preparar un certificado. Inicia sesión en el sitio web de Samsung con tu cuenta o crea una si aún no tienes una. El certificado quedará guardado en la cuenta del usuario actual de este equipo; en próximas instalaciones se reutilizará automáticamente y no tendrás que repetir este proceso."
+                         TextWrapping="Wrap" Foreground="#D6E1F2" />
+              <TextBlock Name="CertificateOperationStatus" IsVisible="False" TextWrapping="Wrap" Foreground="#D6E1F2" />
               <Button Name="GenerateCertificateButton"
-                      Content="Crear o renovar certificado con Samsung"
-                      HorizontalAlignment="Left" IsEnabled="False"
+                      Content="Abrir sitio web para iniciar sesión ↗"
+                      HorizontalAlignment="Center" Margin="0,12,0,0" IsEnabled="False"
                       Click="OnGenerateCertificateClick" Classes="primary" />
             </StackPanel>
           </Border>
+          <StackPanel Name="CertificateReadyIntro" IsVisible="False" Spacing="8">
+            <TextBlock Text="El certificado para la instalación de Moonlight en su televisión ya está preparado. Cuando esté listo para instalar la aplicación pulse en el botón Instalar para iniciar la transferencia y terminar."
+                       Foreground="#ACBAD0" TextWrapping="Wrap" />
+          </StackPanel>
+          <Border Name="CertificateReadyPanel" IsVisible="False" Background="#101A2D"
+                  BorderBrush="#35C978" BorderThickness="1" CornerRadius="12" Padding="20" Margin="0,12,0,0">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+              <Border Width="68" Height="68" CornerRadius="12" Background="#173F2B"
+                      HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Path Data="M 12,4 L 36,4 L 36,44 L 12,44 Z M 18,14 L 30,14 M 18,22 L 30,22 M 18,30 L 27,30"
+                      Width="32" Height="40" Stretch="Uniform" Stroke="#65D99A"
+                      StrokeThickness="2.5" StrokeLineCap="Round"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Name="CertificateIssuerDetails" TextWrapping="Wrap" Foreground="#D6E1F2" />
+                <TextBlock Name="CertificateValidityDetails" TextWrapping="Wrap" Foreground="#ACBAD0" />
+              </StackPanel>
+            </Grid>
+          </Border>
+          <Grid Name="TvStoreResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
+                IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
+            <Border Name="TvStoreResultIconCircle" Width="76" Height="76" CornerRadius="38"
+                    Background="#173F2B" BorderBrush="#35C978" BorderThickness="3"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Grid>
+                <Path Name="TvStoreResultIcon" Data="M 3,12 L 9,18 L 21,6"
+                      Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
+                      StrokeThickness="2.8" StrokeLineCap="Round"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Grid>
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Name="TvStoreResultTitle" Text="Transferencia completada"
+                         FontSize="22" FontWeight="Bold" />
+              <TextBlock Name="TvStoreResultMessage" TextWrapping="Wrap" Foreground="#D6E1F2"
+                         FontSize="15" />
+            </StackPanel>
+          </Grid>
         </StackPanel>
 
         <StackPanel Name="InstallationPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 5 · INSTALACIÓN" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Text="Instalar Moonlight" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="El paquete se firmará con el perfil Partner y se instalará en el televisor mediante SDB."
-                     Foreground="#ACBAD0" TextWrapping="Wrap" />
-          <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
-                  CornerRadius="12" Padding="20">
-            <StackPanel Spacing="12">
-              <Button Name="InstallWgtButton" Content="Instalar Moonlight mediante SDB"
-                      HorizontalAlignment="Left" IsEnabled="False"
-                      Click="OnInstallWgtClick" Classes="primary" />
-              <TextBlock Name="InstallationOperationStatus" TextWrapping="Wrap"
-                         Foreground="#D6E1F2" />
+          <TextBlock Name="InstallationPageTitle" Text="Instalar Moonlight" FontSize="28" FontWeight="Bold" />
+          <StackPanel Name="InstallationProgressPanel" Spacing="14">
+            <TextBlock Text="Se está preparando y transfiriendo Moonlight al televisor. Este proceso puede tardar unos instantes."
+                       Foreground="#ACBAD0" TextWrapping="Wrap" />
+            <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
+                    CornerRadius="12" Padding="20">
+              <StackPanel Spacing="14">
+                <TextBlock Name="InstallationOperationStatus" Text="Preparando la instalación…"
+                           TextWrapping="Wrap" Foreground="#D6E1F2" />
+                <ProgressBar Name="InstallationProgressBar" IsIndeterminate="False"
+                             Height="8" Minimum="0" Maximum="100" />
+              </StackPanel>
+            </Border>
+          </StackPanel>
+          <Grid Name="InstallationResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
+                IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
+            <Border Name="InstallationResultIconCircle" Width="76" Height="76" CornerRadius="38"
+                    Background="#173F2B" BorderBrush="#35C978" BorderThickness="3"
+                    HorizontalAlignment="Center" VerticalAlignment="Center">
+              <Path Name="InstallationResultIcon" Data="M 3,12 L 9,18 L 21,6"
+                    Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
+                    StrokeThickness="2.8" StrokeLineCap="Round"
+                    HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,24,0,0" />
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+              <TextBlock Name="InstallationResultTitle" Text="Instalación completada"
+                         FontSize="22" FontWeight="Bold" />
+              <TextBlock Name="InstallationResultMessage" TextWrapping="Wrap"
+                         Foreground="#D6E1F2" FontSize="15" />
             </StackPanel>
-          </Border>
+          </Grid>
         </StackPanel>
       </Grid>
     </ScrollViewer>
@@ -206,15 +344,31 @@
     <Border Grid.Row="3" Padding="26,16" Background="#0B1323"
             BorderBrush="#26344C" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
-        <TextBlock Text="Moonlight Tizen · Instalador" Foreground="#71839F"
-                   VerticalAlignment="Center" FontSize="12" />
-        <Button Name="WizardBackButton" Grid.Column="1" Content="Atrás"
-                MinWidth="100" Margin="0,0,10,0" Click="OnWizardBackClick" IsVisible="False" />
-        <Button Name="WizardExitButton" Grid.Column="2" Content="Salir"
-                MinWidth="100" Margin="0,0,10,0" Click="OnWizardExitClick" />
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="14">
+          <TextBlock Text="Moonlight Tizen · Instalador" Foreground="#71839F" VerticalAlignment="Center" FontSize="12" />
+          <Button Classes="footer-link" Click="OnWebsiteClick">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Data="M 12,2 A 10,10 0 1 0 12,22 A 10,10 0 1 0 12,2 M 2,12 L 22,12 M 12,2 C 7,7 7,17 12,22 M 12,2 C 17,7 17,17 12,22" Width="14" Height="14" Stretch="Uniform" Stroke="#71839F" StrokeThickness="1.5" />
+              <TextBlock Text="Web site" Foreground="#71839F" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+          <Button Classes="footer-link" Click="OnGithubClick">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <Path Data="M 12,1 C 5.9,1 1,5.9 1,12 C 1,16.9 4.2,21 8.7,22 C 9.2,22.1 9.4,21.8 9.4,21.5 L 9.4,19.4 C 6.2,20.1 5.6,18 5.6,18 C 5.2,17 4.3,16.7 4.3,16.7 C 3.3,16 4.4,16 4.4,16 C 5.5,16.1 6.1,17.1 6.1,17.1 C 7.1,18.7 8.6,18.2 9.3,17.9 C 9.4,17.2 9.7,16.7 10,16.4 C 7.4,16.1 4.7,15.1 4.7,11.4 C 4.7,10.3 5.1,9.4 5.7,8.7 C 5.6,8.4 5.2,7.4 5.8,6 C 5.8,6 6.7,5.7 9.4,7.5 C 11.1,7 12.9,7 14.6,7.5 C 17.3,5.7 18.2,6 18.2,6 C 18.8,7.4 18.4,8.4 18.3,8.7 C 18.9,9.4 19.3,10.3 19.3,11.4 C 19.3,15.1 16.6,16.1 14,16.4 C 14.4,16.8 14.7,17.4 14.7,18.3 L 14.7,21.5 C 14.7,21.8 14.9,22.1 15.4,22 C 19.8,21 23,16.9 23,12 C 23,5.9 18.1,1 12,1 Z" Width="14" Height="14" Stretch="Uniform" Fill="#71839F" />
+              <TextBlock Text="Github sources" Foreground="#71839F" FontSize="12" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </StackPanel>
+        <Button Name="WizardExitButton" Grid.Column="1" Content="Salir"
+                Width="110" MinWidth="110" Margin="0,0,10,0" Click="OnWizardExitClick" />
+        <Button Name="WizardBackButton" Grid.Column="2" Content="Atrás"
+                Width="110" MinWidth="110" Margin="0,0,10,0" Click="OnWizardBackClick" IsVisible="False" />
         <Button Name="WizardNextButton" Grid.Column="3" Content="Comenzar"
-                MinWidth="130" Click="OnWizardNextClick" Classes="primary" />
+                Width="110" MinWidth="110" Click="OnWizardNextClick" Classes="primary" />
       </Grid>
     </Border>
+    <Border Name="ModalOverlay" Grid.RowSpan="4" Background="#99000000" IsVisible="False" />
   </Grid>
+  </Border>
+  </Border>
 </Window>

@@ -16,12 +16,13 @@ public sealed record DiscoveredTelevision(
 {
     public const int DirectSdbPort = 26101;
     public bool UsesTvStoreRelay => SdbPort != DirectSdbPort;
+    public string FriendlyName => string.IsNullOrWhiteSpace(Name) ? "TV con TizenOS" : Name;
 
     public string DisplayName
     {
         get
         {
-            var name = string.IsNullOrWhiteSpace(Name) ? "Samsung TV" : Name;
+            var name = string.IsNullOrWhiteSpace(Name) ? "TV con TizenOS" : Name;
             var endpoint = UsesTvStoreRelay ? $"SDB relay :{SdbPort}" : $"SDB :{SdbPort}";
             return string.IsNullOrWhiteSpace(Duid)
                 ? $"{name} ({IpAddress}) — {endpoint}"
@@ -63,7 +64,7 @@ public sealed class TelevisionDiscoveryService
         if (addresses.Count == 0)
             return Array.Empty<DiscoveredTelevision>();
 
-        progress?.Report($"Buscando televisores Samsung en la red ({addresses.Count} direcciones posibles)…");
+        progress?.Report("Detectando televisores con TizenOS en la red local…");
         using var gate = new SemaphoreSlim(MaxConcurrentProbes);
         var found = new System.Collections.Concurrent.ConcurrentBag<DiscoveredTelevision>();
 

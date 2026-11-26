@@ -5,19 +5,36 @@ on:
     paths:
       - "Installer/**"
       - ".github/workflows/build-installer.yml"
+      - "scripts/check-installer-localization.py"
   pull_request:
     paths:
       - "Installer/**"
       - ".github/workflows/build-installer.yml"
+      - "scripts/check-installer-localization.py"
   workflow_dispatch:
+
+concurrency:
+  group: build-installer-${{ github.event.pull_request.head.repo.full_name || github.repository }}-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build installer (${{ matrix.rid }})
+  localization:
+    name: Validate installer translations
     runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Validate localization keys and translations
+        run: python3 scripts/check-installer-localization.py
+
+  build:
+    needs: localization
+    name: Build installer (${{ matrix.rid }})
+    runs-on: ${{ matrix.rid == 'win-x64' && 'windows-latest' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -37,15 +54,19 @@ jobs:
 
       - name: Download Moonlight package for embedding
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           release_json="$(curl --fail --silent --show-error --location \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest")"
           wgt_url="$(printf '%s' "$release_json" | jq -er '.assets[] | select(.name == "Moonlight.wgt") | .browser_download_url' | head -n 1)"
           test -n "$wgt_url"
-          curl --fail --silent --show-error --location --retry 3 "$wgt_url" \
+          curl --fail --silent --show-error --location --retry 3 \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" "$wgt_url" \
             --output Installer/src/MoonlightTizenInstaller/Moonlight.wgt
           test -s Installer/src/MoonlightTizenInstaller/Moonlight.wgt
           unzip -tq Installer/src/MoonlightTizenInstaller/Moonlight.wgt
@@ -55,6 +76,31 @@ jobs:
 
       - name: Publish self-contained single-file executable
         run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output artifacts/publish
+
+      - name: Smoke-test Windows application startup
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          $executable = Join-Path $PWD "artifacts/publish/MoonlightTizenInstaller.exe"
+          $startupLog = Join-Path $env:TEMP "MoonlightTizenInstaller-startup-error.log"
+          Remove-Item $startupLog -Force -ErrorAction SilentlyContinue
+          $process = Start-Process -FilePath $executable -PassThru
+          try {
+            Start-Sleep -Seconds 10
+            $process.Refresh()
+            if ($process.HasExited) {
+              if (Test-Path $startupLog) {
+                Write-Host "Application startup exception:"
+                Get-Content $startupLog
+              }
+              throw "MoonlightTizenInstaller.exe exited during the startup smoke test (exit code $($process.ExitCode))."
+            }
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
 
       - name: Prepare single-file distribution
         shell: bash
