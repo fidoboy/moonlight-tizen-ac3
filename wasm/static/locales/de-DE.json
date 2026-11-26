@@ -364,6 +364,7 @@
   "PAIRED": "GEKOPPELT",
   "PLAY/PAUSE": "WIEDERGABE/PAUSE",
   "Pair State: %1$s": "Kopplungsstatus: %1$s",
+  "On your desktop computer, open your GameStream host’s web interface and enter the PIN.<br><br>": "Öffnen Sie auf Ihrem Desktop-Computer die Weboberfläche Ihres GameStream-Hosts und geben Sie die PIN ein.<br><br>",
   "Pairing": "Koppeln",
   "Partial encryption warning: audio": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Audiostream ist unverschlüsselt.",
   "Partial encryption warning: video": "ACHTUNG: Die Verbindung ist nur teilweise sicher; der Videostream ist unverschlüsselt.",
