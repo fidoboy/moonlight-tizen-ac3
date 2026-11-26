@@ -16,6 +16,7 @@ public sealed record DiscoveredTelevision(
 {
     public const int DirectSdbPort = 26101;
     public bool UsesTvStoreRelay => SdbPort != DirectSdbPort;
+    public string FriendlyName => string.IsNullOrWhiteSpace(Name) ? "TV con TizenOS" : Name;
 
     public string DisplayName
     {
