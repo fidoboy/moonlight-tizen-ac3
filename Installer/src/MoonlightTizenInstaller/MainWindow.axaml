@@ -1,8 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="MoonlightTizenInstaller.MainWindow"
-        Width="760" Height="600"
-        MinWidth="640" MinHeight="520"
+        Width="760" Height="680"
+        MinWidth="640" MinHeight="560"
         Title="Moonlight Tizen Installer">
   <Grid RowDefinitions="Auto,*,Auto" Margin="28">
     <StackPanel Spacing="6">
@@ -24,22 +24,40 @@
         </Border>
         <Border Padding="20" CornerRadius="8" BorderThickness="1"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
-          <StackPanel Spacing="10">
-            <TextBlock Text="Emitir o renovar un perfil" FontSize="19" />
-            <TextBlock Text="Detecta los televisores Samsung disponibles y recupera su DUID mediante SDB." TextWrapping="Wrap" />
-            <Button Name="DiscoverTelevisionsButton" Content="Buscar televisores en la red" HorizontalAlignment="Left" Click="OnDiscoverTelevisionsClick" />
-            <TextBlock Name="TelevisionDiscoveryStatus" Text="Todavía no se ha realizado la búsqueda." TextWrapping="Wrap" Opacity="0.8" />
-            <ComboBox Name="TelevisionSelection" IsVisible="False" SelectionChanged="OnTelevisionSelectionChanged">
-              <ComboBox.ItemTemplate>
-                <DataTemplate>
-                  <TextBlock Text="{Binding DisplayName}" />
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-            <TextBox Name="TelevisionDuid" Watermark="DUID del televisor (introducción manual)" />
+          <StackPanel Spacing="12">
+            <TextBlock Text="Conectar con el televisor" FontSize="19" />
+            <TextBlock Text="El instalador necesita detectar y conectar con una TV Samsung mediante SDB para obtener su DUID. No es posible continuar introduciéndolo manualmente." TextWrapping="Wrap" />
+            <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
+              <ProgressBar IsIndeterminate="True" Height="6" />
+              <TextBlock Name="TelevisionSearchStatus" Text="Buscando televisores y comprobando la conexión SDB…" TextWrapping="Wrap" />
+            </StackPanel>
+            <StackPanel Name="TelevisionActivationPanel" Spacing="10" IsVisible="False">
+              <TextBlock Text="Activa el modo desarrollador en tu Samsung TV" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Text="1. Enciende el televisor y abre la sección Apps." TextWrapping="Wrap" />
+              <TextBlock Text="2. Con el mando a distancia, introduce la secuencia 12345 para abrir el menú de Developer Mode." TextWrapping="Wrap" />
+              <TextBlock Text="3. Activa Developer Mode (ON)." TextWrapping="Wrap" />
+              <TextBlock Text="4. En el campo Host PC IP, introduce exactamente esta dirección IP:" TextWrapping="Wrap" />
+              <Border Padding="12" CornerRadius="6" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
+                <TextBlock Name="HostIpAddress" Text="Consultando dirección IP…" FontSize="20" FontWeight="SemiBold" />
+              </Border>
+              <TextBlock Text="5. Confirma la configuración y reinicia el televisor si lo solicita. Comprueba que el ordenador y la TV están conectados a la misma red local." TextWrapping="Wrap" />
+              <TextBlock Text="Cuando hayas terminado, pulsa Reintentar. La búsqueda y la lectura del DUID se repetirán automáticamente." TextWrapping="Wrap" Opacity="0.8" />
+              <Button Name="RetryTelevisionDiscoveryButton" Content="Reintentar" HorizontalAlignment="Left" Click="OnDiscoverTelevisionsClick" />
+            </StackPanel>
+            <StackPanel Name="TelevisionSelectionPanel" Spacing="8" IsVisible="False">
+              <TextBlock Name="TelevisionSelectionPrompt" Text="Se han detectado varios televisores. Selecciona el que quieras utilizar:" TextWrapping="Wrap" />
+              <ComboBox Name="TelevisionSelection" SelectionChanged="OnTelevisionSelectionChanged">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate>
+                    <TextBlock Text="{Binding DisplayName}" />
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+            <TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Opacity="0.8" />
             <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" Click="OnEnsureCertificateClick" />
-              <Button Name="SignWgtButton" Content="Firmar WGT…" HorizontalAlignment="Left" Click="OnSignWgtClick" />
+              <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" IsEnabled="False" Click="OnEnsureCertificateClick" />
+              <Button Name="SignWgtButton" Content="Firmar WGT…" HorizontalAlignment="Left" IsEnabled="False" Click="OnSignWgtClick" />
             </StackPanel>
             <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
           </StackPanel>

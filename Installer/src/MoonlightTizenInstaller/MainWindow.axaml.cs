@@ -12,6 +12,8 @@ public sealed partial class MainWindow : Window
 {
     private readonly CertificateManager _certificates;
     private readonly TelevisionDiscoveryService _discovery;
+    private string? _selectedDuid;
+    private bool _discoveryInProgress;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
     {
@@ -29,98 +31,131 @@ public sealed partial class MainWindow : Window
 
     private async Task DiscoverTelevisionsAsync()
     {
-        var button = this.FindControl<Button>("DiscoverTelevisionsButton");
-        var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
+        if (_discoveryInProgress)
+            return;
+
+        _discoveryInProgress = true;
+        _selectedDuid = null;
+        SetTelevisionActionsEnabled(false);
+        var searching = this.FindControl<StackPanel>("TelevisionSearchingPanel");
+        var activation = this.FindControl<StackPanel>("TelevisionActivationPanel");
+        var selectionPanel = this.FindControl<StackPanel>("TelevisionSelectionPanel");
         var selector = this.FindControl<ComboBox>("TelevisionSelection");
-        var duidBox = this.FindControl<TextBox>("TelevisionDuid");
-        if (button is not null) button.IsEnabled = false;
-        if (status is not null) status.Text = "Buscando televisores y leyendo sus DUID…";
+        var retry = this.FindControl<Button>("RetryTelevisionDiscoveryButton");
+        var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
+        var searchStatus = this.FindControl<TextBlock>("TelevisionSearchStatus");
+
+        if (searching is not null) searching.IsVisible = true;
+        if (activation is not null) activation.IsVisible = false;
+        if (selectionPanel is not null) selectionPanel.IsVisible = false;
         if (selector is not null)
         {
-            selector.IsVisible = false;
             selector.ItemsSource = null;
             selector.SelectedItem = null;
         }
-        if (duidBox is not null)
-        {
-            duidBox.IsVisible = true;
-            duidBox.IsReadOnly = false;
-            duidBox.Text = string.Empty;
-        }
+        if (retry is not null) retry.IsEnabled = false;
+        if (status is not null) status.Text = string.Empty;
+        if (searchStatus is not null) searchStatus.Text = "Buscando televisores y comprobando la conexión SDB…";
 
         try
         {
             var progress = new Progress<string>(message =>
             {
-                if (status is not null) status.Text = message;
+                if (searchStatus is not null) searchStatus.Text = message;
             });
             var devices = await _discovery.DiscoverAsync(progress);
+
             if (devices.Count == 0)
             {
-                if (status is not null)
-                    status.Text = "No se han detectado televisores con el puerto SDB disponible. Puedes introducir el DUID manualmente.";
+                ShowDeveloperModeInstructions(
+                    "No se ha podido detectar ninguna TV con Developer Mode y conexión SDB activos.");
                 return;
             }
 
             if (devices.Count == 1)
             {
-                var device = devices[0];
-                if (duidBox is not null)
-                {
-                    duidBox.Text = device.Duid;
-                    duidBox.IsReadOnly = true;
-                }
-                if (status is not null)
-                    status.Text = $"Televisor detectado: {device.DisplayName}";
+                SelectTelevision(devices[0]);
                 return;
             }
 
             if (selector is not null)
             {
                 selector.ItemsSource = devices;
-                selector.SelectedIndex = 0;
-                selector.IsVisible = true;
+                selector.SelectedIndex = -1;
             }
-            if (duidBox is not null)
-                duidBox.IsVisible = false;
+            if (searching is not null) searching.IsVisible = false;
+            if (selectionPanel is not null) selectionPanel.IsVisible = true;
             if (status is not null)
-                status.Text = $"Se han detectado {devices.Count} televisores. Selecciona el que quieras utilizar.";
-            UpdateSelectedTelevisionDuid();
+                status.Text = $"Se han detectado {devices.Count} televisores. Es necesario seleccionar uno para continuar.";
         }
         catch (OperationCanceledException)
         {
-            if (status is not null) status.Text = "Búsqueda cancelada.";
+            ShowDeveloperModeInstructions("La búsqueda no se ha completado. Comprueba la configuración de Developer Mode y vuelve a intentarlo.");
         }
         catch (Exception ex)
         {
-            if (status is not null)
-                status.Text = $"No se pudo completar la detección: {ex.Message}. Puedes introducir el DUID manualmente.";
+            ShowDeveloperModeInstructions($"No se ha podido completar la detección ({ex.Message}). Comprueba la configuración de Developer Mode y vuelve a intentarlo.");
         }
         finally
         {
-            if (button is not null) button.IsEnabled = true;
+            _discoveryInProgress = false;
+            if (retry is not null) retry.IsEnabled = true;
         }
     }
 
-    private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e) =>
-        UpdateSelectedTelevisionDuid();
-
-    private void UpdateSelectedTelevisionDuid()
+    private void ShowDeveloperModeInstructions(string message)
     {
-        if (this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is not DiscoveredTelevision selected)
-            return;
-        var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
-        if (status is not null)
-            status.Text = $"Televisor seleccionado: {selected.DisplayName}";
+        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching)
+            searching.IsVisible = false;
+        if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection)
+            selection.IsVisible = false;
+        if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation)
+            activation.IsVisible = true;
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
+            status.Text = message;
+        if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
+            hostIp.Text = _discovery.GetHostIpv4Address() ?? "No se ha podido determinar una IPv4 privada";
     }
 
-    private string? GetSelectedDuid()
+    private void SelectTelevision(DiscoveredTelevision device)
     {
-        if (this.FindControl<ComboBox>("TelevisionSelection")?.IsVisible == true &&
-            this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is DiscoveredTelevision selected)
-            return selected.Duid;
-        return this.FindControl<TextBox>("TelevisionDuid")?.Text?.Trim();
+        _selectedDuid = device.Duid;
+        if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching)
+            searching.IsVisible = false;
+        if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation)
+            activation.IsVisible = false;
+        if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection)
+            selection.IsVisible = false;
+        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
+            status.Text = $"Conexión SDB verificada: {device.DisplayName}. DUID: {device.Duid}";
+        SetTelevisionActionsEnabled(true);
     }
+
+    private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is DiscoveredTelevision selected)
+        {
+            _selectedDuid = selected.Duid;
+            if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
+                status.Text = $"Televisor seleccionado: {selected.DisplayName}. DUID: {selected.Duid}";
+            SetTelevisionActionsEnabled(true);
+        }
+        else
+        {
+            _selectedDuid = null;
+            SetTelevisionActionsEnabled(false);
+        }
+    }
+
+    private void SetTelevisionActionsEnabled(bool enabled)
+    {
+        if (this.FindControl<Button>("EnsureCertificateButton") is { } ensure)
+            ensure.IsEnabled = enabled && !_discoveryInProgress;
+        if (this.FindControl<Button>("SignWgtButton") is { } sign)
+            sign.IsEnabled = enabled && !_discoveryInProgress;
+    }
+
+    private string? GetSelectedDuid() => _selectedDuid;
 
     private void RefreshCertificateStatus()
     {
@@ -152,14 +187,12 @@ public sealed partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
             if (status is not null)
-                status.Text = "Introduce un DUID válido del televisor (entre 10 y 64 caracteres alfanuméricos).";
+                status.Text = "Es necesario detectar y seleccionar una TV con conexión SDB válida.";
             return;
         }
 
-        if (button is not null)
-            button.IsEnabled = false;
-        if (status is not null)
-            status.Text = "Comprobando el perfil existente…";
+        if (button is not null) button.IsEnabled = false;
+        if (status is not null) status.Text = "Comprobando el perfil existente…";
 
         try
         {
@@ -168,8 +201,7 @@ public sealed partial class MainWindow : Window
                 level,
                 progress: message => Dispatcher.UIThread.Post(() =>
                 {
-                    if (status is not null)
-                        status.Text = message;
+                    if (status is not null) status.Text = message;
                 }));
 
             if (status is not null)
@@ -178,18 +210,15 @@ public sealed partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            if (status is not null)
-                status.Text = "Operación cancelada.";
+            if (status is not null) status.Text = "Operación cancelada.";
         }
         catch (Exception ex)
         {
-            if (status is not null)
-                status.Text = $"No se pudo preparar el certificado: {ex.Message}";
+            if (status is not null) status.Text = $"No se pudo preparar el certificado: {ex.Message}";
         }
         finally
         {
-            if (button is not null)
-                button.IsEnabled = true;
+            if (button is not null) button.IsEnabled = _selectedDuid is not null;
         }
     }
 
@@ -197,12 +226,10 @@ public sealed partial class MainWindow : Window
     {
         var duid = GetSelectedDuid();
         const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
-        var status = this.FindControl<TextBlock>("CertificateOperationStatus");
-        var button = this.FindControl<Button>("SignWgtButton");
 
         if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
-            SetOperationStatus("Introduce primero un DUID válido del televisor.");
+            SetOperationStatus("Es necesario detectar y seleccionar una TV con conexión SDB válida.");
             return;
         }
 
@@ -215,8 +242,7 @@ public sealed partial class MainWindow : Window
                 Filters = { new FileDialogFilter { Name = "Paquete Tizen", Extensions = { "wgt" } } }
             };
             var inputs = await inputDialog.ShowAsync(this);
-            if (inputs is not { Length: > 0 })
-                return;
+            if (inputs is not { Length: > 0 }) return;
 
             var outputDialog = new SaveFileDialog
             {
@@ -225,11 +251,10 @@ public sealed partial class MainWindow : Window
                 Filters = { new FileDialogFilter { Name = "Paquete Tizen", Extensions = { "wgt" } } }
             };
             var output = await outputDialog.ShowAsync(this);
-            if (string.IsNullOrWhiteSpace(output))
-                return;
+            if (string.IsNullOrWhiteSpace(output)) return;
 
-            if (button is not null)
-                button.IsEnabled = false;
+            var button = this.FindControl<Button>("SignWgtButton");
+            if (button is not null) button.IsEnabled = false;
             SetOperationStatus("Comprobando o preparando el perfil de firma…");
 
             var profile = await _certificates.EnsureForTelevisionAsync(
@@ -252,8 +277,8 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            if (button is not null)
-                button.IsEnabled = true;
+            if (this.FindControl<Button>("SignWgtButton") is { } sign)
+                sign.IsEnabled = _selectedDuid is not null;
         }
     }
 
@@ -268,8 +293,7 @@ public sealed partial class MainWindow : Window
                 Filters = { new FileDialogFilter { Name = "Perfiles de certificados", Extensions = { "a2scert" } } }
             };
             var path = await dialog.ShowAsync(this);
-            if (string.IsNullOrWhiteSpace(path))
-                return;
+            if (string.IsNullOrWhiteSpace(path)) return;
 
             await using var stream = File.Create(path);
             _certificates.ExportProfiles(stream);
@@ -292,8 +316,7 @@ public sealed partial class MainWindow : Window
                 Filters = { new FileDialogFilter { Name = "Perfiles de certificados", Extensions = { "a2scert", "zip" } } }
             };
             var files = await dialog.ShowAsync(this);
-            if (files is not { Length: > 0 })
-                return;
+            if (files is not { Length: > 0 }) return;
 
             await using var stream = File.OpenRead(files[0]);
             var preview = _certificates.PreviewImport(stream);
@@ -301,8 +324,7 @@ public sealed partial class MainWindow : Window
                 throw new InvalidDataException("El archivo no contiene perfiles de firma.");
 
             var accepted = await ConfirmImportAsync(preview.Profiles.Count);
-            if (!accepted)
-                return;
+            if (!accepted) return;
 
             stream.Position = 0;
             _certificates.ImportProfiles(stream);
@@ -359,8 +381,7 @@ public sealed partial class MainWindow : Window
 
     private void SetOperationStatus(string message)
     {
-        var status = this.FindControl<TextBlock>("CertificateOperationStatus");
-        if (status is not null)
+        if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } status)
             status.Text = message;
     }
 }

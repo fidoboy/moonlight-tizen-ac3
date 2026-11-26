@@ -71,6 +71,45 @@ public sealed class TelevisionDiscoveryService
             .ToArray();
     }
 
+
+    /// <summary>
+    /// Returns the private IPv4 address of the active LAN interface to enter in the TV's
+    /// Developer Mode "Host PC IP" field. Prefer an interface with a default gateway.
+    /// </summary>
+    public string? GetHostIpv4Address()
+    {
+        var candidates = new List<(IPAddress Address, bool HasGateway, int Metric)>();
+        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces())
+        {
+            if (networkInterface.OperationalStatus != OperationalStatus.Up ||
+                networkInterface.NetworkInterfaceType is NetworkInterfaceType.Loopback or NetworkInterfaceType.Tunnel)
+                continue;
+
+            try
+            {
+                var properties = networkInterface.GetIPProperties();
+                var hasGateway = properties.GatewayAddresses.Any(gateway =>
+                    gateway.Address.AddressFamily == AddressFamily.InterNetwork &&
+                    !gateway.Address.Equals(IPAddress.Any));
+                var metric = properties.GetIPv4Properties()?.Index ?? int.MaxValue;
+                foreach (var unicast in properties.UnicastAddresses)
+                {
+                    var address = unicast.Address;
+                    if (address.AddressFamily == AddressFamily.InterNetwork &&
+                        !IPAddress.IsLoopback(address) && IsPrivateIpv4(address))
+                        candidates.Add((address, hasGateway, metric));
+                }
+            }
+            catch { /* Ignore interfaces that disappear while the adapter list is inspected. */ }
+        }
+
+        return candidates
+            .OrderByDescending(candidate => candidate.HasGateway)
+            .ThenBy(candidate => candidate.Metric)
+            .Select(candidate => candidate.Address.ToString())
+            .FirstOrDefault();
+    }
+
     private static List<IPAddress> GetCandidateAddresses()
     {
         var candidates = new HashSet<IPAddress>();
