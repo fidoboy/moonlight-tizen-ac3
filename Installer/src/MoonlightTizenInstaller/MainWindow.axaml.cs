@@ -146,14 +146,14 @@ public sealed partial class MainWindow : Window
         if (next is not null)
         {
             next.IsVisible = !_tvStoreHandoff;
-            next.Content = _wizardStep switch
+            next.Content = InstallerLocalization.T(_wizardStep switch
             {
                 1 => "Comenzar",
                 2 => "Continuar",
                 3 => "Siguiente",
                 4 => "Ir a instalación",
                 _ => "Finalizar"
-            };
+            });
             next.IsEnabled = _wizardStep switch
             {
                 1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
