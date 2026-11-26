@@ -23,6 +23,19 @@ public sealed class TvStoreHandoffService
     public sealed record HandoffResult(string FileName, long Size, string Sha256, bool TvStoreOpened);
 
     /// <summary>
+    /// Performs a read-only check for an installed TV-Store instance or its upload service.
+    /// This method never launches TV-Store.
+    /// </summary>
+    public async Task<bool> IsInstalledAsync(
+        string televisionIp,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(televisionIp);
+        return await IsUploadPageAvailableAsync(televisionIp, cancellationToken).ConfigureAwait(false) ||
+               await IsTvStoreInstalledAsync(televisionIp, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
     /// Returns null when TV-Store is not installed/reachable, cannot be started, or refuses
     /// the upload. A non-null result means the WGT is waiting in TV-Store for the user to accept.
     /// It does not mean that the user has completed installation.
