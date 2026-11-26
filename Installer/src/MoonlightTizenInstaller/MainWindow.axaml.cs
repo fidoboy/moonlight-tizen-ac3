@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Markup.Xaml;
@@ -508,41 +509,93 @@ public sealed partial class MainWindow : Window
         {
             Text = $"Se ha detectado que TV-Store está instalado en uno de tus dispositivos ({television.IpAddress}). ¿Quieres utilizarlo para completar allí la instalación de Moonlight?",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Margin = new Avalonia.Thickness(22, 22, 22, 16),
-            MaxWidth = 440
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            FontSize = 15
+        };
+        var storeIcon = new Avalonia.Controls.Shapes.Path
+        {
+            Data = Avalonia.Media.Geometry.Parse("M 10,16 L 38,16 L 35,44 L 13,44 Z M 17,16 C 17,5 31,5 31,16"),
+            Stroke = Avalonia.Media.Brushes.White,
+            StrokeThickness = 3,
+            StrokeLineCap = Avalonia.Media.PenLineCap.Round,
+            StrokeLineJoin = Avalonia.Media.PenLineJoin.Round,
+            Fill = Avalonia.Media.Brushes.Transparent,
+            Width = 48,
+            Height = 48,
+            Stretch = Avalonia.Media.Stretch.Uniform
+        };
+        var iconContainer = new Border
+        {
+            Width = 76,
+            Height = 76,
+            CornerRadius = new Avalonia.CornerRadius(16),
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#203B60")),
+            Child = storeIcon,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
         };
         var useButton = new Button
         {
             Content = "Sí, utilizar TV-Store",
-            MinWidth = 170,
+            Width = 190,
+            MinWidth = 190,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             Classes = { "primary" }
         };
         var normalButton = new Button
         {
             Content = "No",
-            MinWidth = 230
+            Width = 190,
+            MinWidth = 190,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center
         };
-        var buttons = new StackPanel
+        var buttons = new Grid
         {
-            Orientation = Avalonia.Layout.Orientation.Horizontal,
-            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
-            Spacing = 10,
-            Margin = new Avalonia.Thickness(22, 0, 22, 20),
+            ColumnDefinitions = new Avalonia.Controls.ColumnDefinitions("*,*"),
+            ColumnSpacing = 12,
+            Margin = new Avalonia.Thickness(0, 20, 0, 0),
             Children = { normalButton, useButton }
+        };
+        Grid.SetColumn(useButton, 1);
+        var messageLayout = new Grid
+        {
+            ColumnDefinitions = new Avalonia.Controls.ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 20,
+            Children = { iconContainer, message }
+        };
+        Grid.SetColumn(message, 1);
+        var content = new StackPanel
+        {
+            Margin = new Avalonia.Thickness(26),
+            Spacing = 4,
+            Children = { messageLayout, buttons }
         };
         var dialog = new Window
         {
-            Title = "TV-Store detectado",
-            Width = 540,
+            Width = 560,
             SizeToContent = Avalonia.Controls.SizeToContent.Height,
             CanResize = false,
+            SystemDecorations = SystemDecorations.None,
+            ShowInTaskbar = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel { Spacing = 8, Children = { message, buttons } }
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#101A2D")),
+            Foreground = Avalonia.Media.Brushes.White,
+            Content = content
         };
         useButton.Click += (_, _) => dialog.Close(true);
         normalButton.Click += (_, _) => dialog.Close(false);
         return await dialog.ShowDialog<bool>(this);
     }
+
+    private void OnTitleBarPointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+            BeginMoveDrag(e);
+    }
+
+    private void OnMinimizeClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+        WindowState = WindowState.Minimized;
+
+    private void OnWindowCloseClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
 
     private void OnFinishTvStoreHandoffClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
 
