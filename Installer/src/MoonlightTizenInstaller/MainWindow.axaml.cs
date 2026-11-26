@@ -195,8 +195,17 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void OnWizardBackClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void OnWizardBackClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
+        if (_wizardStep == 3)
+        {
+            // Returning from the device-selection page starts a fresh discovery pass;
+            // step 2 must never be left showing the completed results of the old scan.
+            SetWizardStep(2);
+            await DiscoverTelevisionsAsync();
+            return;
+        }
+
         if (_wizardStep > 1)
             SetWizardStep(_wizardStep - 1);
     }
