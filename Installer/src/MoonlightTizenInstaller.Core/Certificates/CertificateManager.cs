@@ -79,7 +79,7 @@ public sealed class CertificateManager
     public IReadOnlyList<CertificateArchiveProfile> ExportProfiles(Stream destination)
     {
         ArgumentNullException.ThrowIfNull(destination);
-        return CertificateArchive.ExportAll(destination, _options.ProfileStorePath);
+        return CertificateArchive.ExportAll(destination, _options.ProfileStorePath, includePassword: true);
     }
 
     public CertificateArchivePreview PreviewImport(Stream source)

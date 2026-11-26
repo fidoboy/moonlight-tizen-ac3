@@ -1,4 +1,5 @@
 using Apps2Samsung.Extensions;
+using Apps2Samsung.Certificate;
 using Apps2Samsung.Helpers.Tizen.Certificate;
 using Apps2Samsung.Interfaces;
 using Org.BouncyCastle.Asn1;
@@ -53,7 +54,6 @@ namespace Apps2Samsung.Services
             progress?.Invoke("GenPassword");
             string p12Plain = cipherUtil.GenerateRandomPassword();
             string p12Encrypted = cipherUtil.GetEncryptedString(p12Plain);
-            await File.WriteAllTextAsync(Path.Combine(outputPath, "password.txt"), p12Plain);
 
             progress?.Invoke("GenKeyPair");
             var keyPair = GenerateKeyPair();
@@ -98,12 +98,12 @@ namespace Apps2Samsung.Services
                 throw new ArgumentException("Certificate directory cannot be empty", nameof(certDir));
 
             var authorP12 = Path.Combine(certDir, "author.p12");
-            var passwordFile = Path.Combine(certDir, "password.txt");
-            if (!File.Exists(authorP12) || !File.Exists(passwordFile))
+            if (!File.Exists(authorP12))
                 throw new FileNotFoundException(
                     "Existing author certificate not found; cannot regenerate distributor only.", authorP12);
 
-            var password = (await File.ReadAllTextAsync(passwordFile)).Trim();
+            var password = CertificateSecrets.GetOrMigrate(certDir)
+                ?? throw new InvalidOperationException("The existing profile password is missing from the OS credential vault.");
 
             // Reuse the existing author keypair so the author identity stays byte-identical —
             // only the device-bound distributor cert changes for the new DUID.
@@ -123,7 +123,7 @@ namespace Apps2Samsung.Services
             await CheckCertificateExistenceAsync(caPath, level);
 
             progress?.Invoke("ExportPfxCertificates");
-            // author.p12 / signed_author.cer / password.txt are intentionally left untouched.
+            // author.p12 / signed_author.cer and its OS-vault password are intentionally left untouched.
             return await ExportPfxWithCaChainAsync(
                 signedDistributorCsrBytes, keyPair.Private, password, certDir,
                 caPath, "distributor", DistributorCaFile(level));

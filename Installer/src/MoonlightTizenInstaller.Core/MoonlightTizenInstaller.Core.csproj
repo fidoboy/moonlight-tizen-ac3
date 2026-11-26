@@ -6,11 +6,13 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
+    <PackageReference Include="Latchkey" Version="0.1.0" />
     <PackageReference Include="TizenSdb.Core" Version="1.1.9" />
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../../vendor/Apps2Samsung/Certificate/SamsungAccountEmailMissingException.cs" Link="Vendor/SamsungAccountEmailMissingException.cs" />
+    <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateSecrets.cs" Link="Vendor/CertificateSecrets.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateProvisioningService.cs" Link="Vendor/CertificateProvisioningService.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Certificate/TizenCertificateService.cs" Link="Vendor/TizenCertificateService.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateHelper.cs" Link="Vendor/CertificateHelper.cs" />

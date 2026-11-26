@@ -13,3 +13,6 @@ The local WGT re-signing operation uses TizenSdb.Core 1.1.9, distributed under t
 No Samsung/Tizen SDK binary, certificate authority, private key, distributor signer, proprietary
 Tizen Studio component, artwork, logo or font is redistributed in this directory. Samsung and Tizen
 marks remain the property of their respective owners. This project is not affiliated with Samsung.
+
+
+- **Latchkey 0.1.0** — MIT License. Used by the installer to access Windows Credential Manager, macOS Keychain and Linux Secret Service. Source and license: https://github.com/kerem-acer/Latchkey.

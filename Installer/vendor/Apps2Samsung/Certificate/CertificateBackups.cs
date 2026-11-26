@@ -328,8 +328,10 @@ namespace Apps2Samsung.Certificate
         {
             var author = Path.Combine(profileDir, Constants.Certificate.AuthorFileName);
             var distributor = Path.Combine(profileDir, Constants.Certificate.DistributorFileName);
-            var password = Path.Combine(profileDir, Constants.Certificate.PasswordFileName);
-            if (!File.Exists(author) || !File.Exists(distributor) || !File.Exists(password))
+            if (!File.Exists(author) || !File.Exists(distributor))
+                return null;
+            var password = CertificateSecrets.GetOrMigrate(profileDir);
+            if (string.IsNullOrEmpty(password))
                 return null;
 
             var authorBytes = File.ReadAllBytes(author);
@@ -338,7 +340,7 @@ namespace Apps2Samsung.Certificate
             sha.AppendData(new byte[] { 0 });
             sha.AppendData(File.ReadAllBytes(distributor));
             sha.AppendData(new byte[] { 0 });
-            sha.AppendData(Encoding.UTF8.GetBytes(File.ReadAllText(password).Trim()));
+            sha.AppendData(Encoding.UTF8.GetBytes(password));
             return new CertificateBackupProfile(
                 Path.GetFileName(profileDir),
                 Convert.ToHexString(sha.GetHashAndReset()),

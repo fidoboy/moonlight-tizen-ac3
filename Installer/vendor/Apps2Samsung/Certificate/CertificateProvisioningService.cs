@@ -43,7 +43,6 @@ namespace Apps2Samsung.Certificate
         public const string ProfileBaseName = "Jelly2Sams";
         private const string AuthorFileName = "author.p12";
         private const string DistributorFileName = "distributor.p12";
-        private const string PasswordFileName = "password.txt";
         private const int MaxDistributorDuids = 10;
 
         private readonly ITizenCertificateService _certService;
@@ -110,7 +109,7 @@ namespace Apps2Samsung.Certificate
 
             CertificateProfile Reuse()
             {
-                var pw = File.ReadAllText(Path.Combine(profileDir, PasswordFileName)).Trim();
+                var pw = CertificateSecrets.GetOrMigrate(profileDir) ?? throw new InvalidOperationException("The certificate profile has no password in the OS credential vault.");
                 return new CertificateProfile(
                     Path.Combine(profileDir, AuthorFileName),
                     Path.Combine(profileDir, DistributorFileName),
@@ -154,6 +153,7 @@ namespace Apps2Samsung.Certificate
             {
                 (authorP12, distributorP12, password) = await _certService.GenerateProfileAsync(
                     duids, auth.access_token, auth.userId, auth.inputEmailID, profileDir, caPath, level, progress);
+                CertificateSecrets.SetForDirectory(profileDir, password);
             }
             else
             {
@@ -161,7 +161,7 @@ namespace Apps2Samsung.Certificate
                 distributorP12 = await _certService.RegenerateDistributorAsync(
                     profileDir, duids, auth.access_token, auth.userId, auth.inputEmailID, caPath, level, progress);
                 authorP12 = Path.Combine(profileDir, AuthorFileName);
-                password = File.ReadAllText(Path.Combine(profileDir, PasswordFileName)).Trim();
+                password = CertificateSecrets.GetOrMigrate(profileDir) ?? throw new InvalidOperationException("The certificate profile has no password in the OS credential vault.");
             }
 
             // A new or renewed certificate is saved outside the app right away (#1068).
@@ -183,11 +183,11 @@ namespace Apps2Samsung.Certificate
             try
             {
                 var authorP12 = Path.Combine(certDir, AuthorFileName);
-                var passwordFile = Path.Combine(certDir, PasswordFileName);
-                if (!File.Exists(authorP12) || !File.Exists(passwordFile))
+                if (!File.Exists(authorP12))
                     return false;
-
-                var password = File.ReadAllText(passwordFile).Trim();
+                var password = CertificateSecrets.GetOrMigrate(certDir);
+                if (string.IsNullOrEmpty(password))
+                    return false;
 #pragma warning disable SYSLIB0057 // matches the proven loader used elsewhere; legacy PKCS#12 support
                 using var cert = new X509Certificate2(authorP12, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057
@@ -209,10 +209,11 @@ namespace Apps2Samsung.Certificate
             try
             {
                 var authorP12 = Path.Combine(certDir, AuthorFileName);
-                var passwordFile = Path.Combine(certDir, PasswordFileName);
-                if (!File.Exists(authorP12) || !File.Exists(passwordFile))
+                if (!File.Exists(authorP12))
                     return null;
-                var password = File.ReadAllText(passwordFile).Trim();
+                var password = CertificateSecrets.GetOrMigrate(certDir);
+                if (string.IsNullOrEmpty(password))
+                    return null;
 #pragma warning disable SYSLIB0057
                 using var cert = new X509Certificate2(authorP12, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057
@@ -230,11 +231,9 @@ namespace Apps2Samsung.Certificate
         {
             try
             {
-                var passwordFile = Path.Combine(certDir, PasswordFileName);
-                if (!File.Exists(passwordFile))
+                var password = CertificateSecrets.GetOrMigrate(certDir);
+                if (string.IsNullOrEmpty(password))
                     return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                var password = File.ReadAllText(passwordFile).Trim();
                 var distributor = Path.Combine(certDir, DistributorFileName);
                 return new CertificateHelper().GetCertificateDuids(distributor, password);
             }

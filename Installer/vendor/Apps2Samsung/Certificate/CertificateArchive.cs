@@ -94,7 +94,7 @@ namespace Apps2Samsung.Certificate
         /// one level, or every usable level when <paramref name="level"/> is null. The stream is left
         /// open. Throws <see cref="CertificateArchiveException"/> when there is nothing usable to export.
         /// </summary>
-        public static IReadOnlyList<CertificateArchiveProfile> Export(Stream zipOutput, string storePath, CertificatePrivilegeLevel? level = null)
+        public static IReadOnlyList<CertificateArchiveProfile> Export(Stream zipOutput, string storePath, CertificatePrivilegeLevel? level = null, bool includePassword = false)
         {
             var levels = level is { } one ? new[] { one } : new[] { CertificatePrivilegeLevel.Public, CertificatePrivilegeLevel.Partner };
             var exported = new List<CertificateArchiveProfile>();
@@ -108,11 +108,7 @@ namespace Apps2Samsung.Certificate
                 if (profile is null || !profile.IsUsable)
                     continue;
 
-                foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
-                {
-                    var rel = Path.GetRelativePath(dir, file).Replace('\\', '/');
-                    zip.CreateEntryFromFile(file, CertPrefix + name + "/" + rel, CompressionLevel.Optimal);
-                }
+                AddProfileEntries(zip, dir, name, includePassword);
 
                 exported.Add(profile);
             }
@@ -129,18 +125,14 @@ namespace Apps2Samsung.Certificate
         /// (#1068). The stream is left open. Throws <see cref="CertificateArchiveException"/> when there is
         /// nothing usable.
         /// </summary>
-        public static IReadOnlyList<CertificateArchiveProfile> ExportAll(Stream zipOutput, string storePath)
+        public static IReadOnlyList<CertificateArchiveProfile> ExportAll(Stream zipOutput, string storePath, bool includePassword = false)
         {
             var exported = new List<CertificateArchiveProfile>();
             using (var zip = new ZipArchive(zipOutput, ZipArchiveMode.Create, leaveOpen: true))
             {
                 foreach (var (dir, profile) in UsableProfiles(storePath))
                 {
-                    foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
-                    {
-                        var rel = Path.GetRelativePath(dir, file).Replace('\\', '/');
-                        zip.CreateEntryFromFile(file, CertPrefix + profile.ProfileName + "/" + rel, CompressionLevel.Optimal);
-                    }
+                    AddProfileEntries(zip, dir, profile.ProfileName, includePassword);
                     exported.Add(profile);
                 }
             }
@@ -148,6 +140,28 @@ namespace Apps2Samsung.Certificate
             if (exported.Count == 0)
                 throw new CertificateArchiveException("There is no usable signing certificate to export.");
             return exported;
+        }
+
+        private static void AddProfileEntries(ZipArchive zip, string dir, string profileName, bool includePassword)
+        {
+            foreach (var file in Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories))
+            {
+                if (string.Equals(Path.GetFileName(file), Constants.Certificate.PasswordFileName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                var rel = Path.GetRelativePath(dir, file).Replace('\\', '/');
+                zip.CreateEntryFromFile(file, CertPrefix + profileName + "/" + rel, CompressionLevel.Optimal);
+            }
+
+            // Manual exports remain portable and compatible with Apps2Samsung archives.
+            // Automatic backups omit this entry and rely on the same machine's OS credential vault.
+            if (includePassword)
+            {
+                var password = CertificateSecrets.GetOrMigrate(dir)
+                    ?? throw new CertificateArchiveException($"The OS credential vault has no password for '{profileName}'.");
+                var entry = zip.CreateEntry(CertPrefix + profileName + "/" + Constants.Certificate.PasswordFileName, CompressionLevel.Optimal);
+                using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(false));
+                writer.Write(password);
+            }
         }
 
         /// <summary>Every complete profile folder in the store whose author certificate can still sign, by name.</summary>
@@ -193,14 +207,14 @@ namespace Apps2Samsung.Certificate
             if (onlyProfile is not null)
                 read = read.Where(r => string.Equals(r.Profile.ProfileName, onlyProfile, StringComparison.Ordinal)).ToList();
             if (read.Count == 0)
-                throw new CertificateArchiveException("The file holds no signing certificate (no author.p12, distributor.p12 and password.txt in a Certificate/<profile>/ folder).");
+                throw new CertificateArchiveException("The file holds no complete signing certificate (author.p12, distributor.p12 and a password in the archive or OS credential vault are required).");
 
             var rejected = read.Select(r => r.Profile).FirstOrDefault(p => !p.IsUsable);
             if (rejected is not null)
             {
                 throw new CertificateArchiveException(rejected.State == CertificateValidityState.Expired
                     ? $"The {rejected.ProfileName} author certificate expired on {rejected.NotAfterUtc:yyyy-MM-dd}; an expired certificate cannot sign anything, so it is not imported. Sign in with Samsung once to get a new one."
-                    : $"The {rejected.ProfileName} author certificate could not be read (wrong password.txt or a damaged file), so it is not imported.");
+                    : $"The {rejected.ProfileName} author certificate could not be read (missing vault password, wrong archive password or damaged certificate), so it is not imported.");
             }
 
             var storeRoot = Path.GetFullPath(storePath);
@@ -217,6 +231,12 @@ namespace Apps2Samsung.Certificate
 
                 foreach (var (relative, content) in entries)
                 {
+                    if (string.Equals(relative, Constants.Certificate.PasswordFileName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        CertificateSecrets.Set(profile.ProfileName, Encoding.UTF8.GetString(content).Trim());
+                        continue;
+                    }
+
                     var dest = Path.GetFullPath(Path.Combine(dir, relative.Replace('/', Path.DirectorySeparatorChar)));
                     // Zip-slip guard: never write outside the profile folder.
                     if (!dest.StartsWith(dir + Path.DirectorySeparatorChar, StringComparison.Ordinal))
@@ -254,9 +274,11 @@ namespace Apps2Samsung.Certificate
                 return File.Exists(path) ? File.ReadAllBytes(path) : null;
             }
 
-            var count = Directory.EnumerateFiles(profileDir, "*", SearchOption.AllDirectories).Count();
+            var count = Directory.EnumerateFiles(profileDir, "*", SearchOption.AllDirectories)
+                .Count(file => !string.Equals(Path.GetFileName(file), Constants.Certificate.PasswordFileName, StringComparison.OrdinalIgnoreCase));
+            var password = CertificateSecrets.GetOrMigrate(profileDir);
             return Describe(Path.GetFileName(profileDir), Read(Constants.Certificate.AuthorFileName),
-                Read(Constants.Certificate.DistributorFileName), Read(Constants.Certificate.PasswordFileName), count);
+                Read(Constants.Certificate.DistributorFileName), password, count);
         }
 
         /// <summary>
@@ -340,7 +362,11 @@ namespace Apps2Samsung.Certificate
             {
                 var files = byProfile[name];
                 byte[]? Of(string file) => files.FirstOrDefault(f => string.Equals(f.Relative, file, StringComparison.OrdinalIgnoreCase)).Content;
-                var profile = Describe(name, Of(Constants.Certificate.AuthorFileName), Of(Constants.Certificate.DistributorFileName), Of(Constants.Certificate.PasswordFileName), files.Count);
+                var archivedPassword = Of(Constants.Certificate.PasswordFileName);
+                var password = archivedPassword is not null
+                    ? Encoding.UTF8.GetString(archivedPassword).Trim()
+                    : CertificateSecrets.Get(name);
+                var profile = Describe(name, Of(Constants.Certificate.AuthorFileName), Of(Constants.Certificate.DistributorFileName), password, files.Count);
                 if (profile is not null)
                     result.Add((profile, files));
             }
@@ -349,12 +375,11 @@ namespace Apps2Samsung.Certificate
         }
 
         // A profile from its three defining files; null when one is missing (then it is no profile).
-        private static CertificateArchiveProfile? Describe(string name, byte[]? author, byte[]? distributor, byte[]? passwordFile, int fileCount)
+        private static CertificateArchiveProfile? Describe(string name, byte[]? author, byte[]? distributor, string? password, int fileCount)
         {
-            if (author is null || distributor is null || passwordFile is null)
+            if (author is null || distributor is null)
                 return null;
 
-            var password = Encoding.UTF8.GetString(passwordFile).Trim();
             var level = LevelOf(name);
 
             string? subject = null;
@@ -362,6 +387,8 @@ namespace Apps2Samsung.Certificate
             DateTime? notBefore = null, notAfter = null;
             try
             {
+                if (string.IsNullOrEmpty(password))
+                    throw new InvalidOperationException("The profile password is not available in the OS credential vault or archive.");
 #pragma warning disable SYSLIB0057 // matches the loader used elsewhere; legacy PKCS#12 support
                 using var cert = new X509Certificate2(author, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057

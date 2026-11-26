@@ -1,4 +1,5 @@
-﻿using Apps2Samsung.Helpers.Core;
+﻿using Apps2Samsung.Certificate;
+using Apps2Samsung.Helpers.Core;
 using Apps2Samsung.Models;
 using System;
 using System.Collections.Generic;
@@ -44,11 +45,9 @@ namespace Apps2Samsung.Helpers.Tizen.Certificate
                 if (directory == null)
                     continue;
 
-                var passwordPath = Path.Combine(directory, "password.txt");
-                if (!File.Exists(passwordPath))
+                var password = CertificateSecrets.GetOrMigrate(directory);
+                if (string.IsNullOrEmpty(password))
                     continue;
-
-                var password = File.ReadAllText(passwordPath).Trim();
                 if (string.IsNullOrWhiteSpace(password))
                     continue;
                 try
