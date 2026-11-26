@@ -44,8 +44,8 @@
           <Button Width="36" Height="36" Padding="0" Classes="window-control"
                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                   Click="OnMinimizeClick">
-            <Path Data="M 3,8 L 13,8" Width="12" Height="12" Stretch="Uniform"
-                  Stroke="#D6E1F2" StrokeThickness="1.4" />
+            <Path Data="M 2,6 L 14,6 L 14,8 L 2,8 Z" Width="16" Height="14" Stretch="Uniform"
+                  Fill="#D6E1F2" />
           </Button>
           <Button Width="36" Height="36" Padding="0" Classes="window-control"
                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
@@ -101,7 +101,7 @@
           <TextBlock Text="Instala Moonlight en tu TV con TizenOS."
                      FontSize="32" FontWeight="Bold" FontFamily="Inter" TextWrapping="Wrap" />
           <TextBlock Text="Este asistente detectará tu televisor y te guiará durante la instalación de Moonlight."
-                     FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730" />
+                     FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730" Margin="22,0,0,0" />
           <Border Name="LanguageSelectionPanel" IsVisible="False" Background="#14213A"
                   BorderBrush="#3E94F5" BorderThickness="1" CornerRadius="12"
                   Padding="16" MaxWidth="730" HorizontalAlignment="Stretch">
@@ -163,18 +163,6 @@
               </StackPanel>
             </Border>
           </StackPanel>
-          <StackPanel Name="TelevisionSelectionPanel" Spacing="8" IsVisible="False">
-            <TextBlock Name="TelevisionSelectionPrompt"
-                       Text="Se han detectado varios televisores. Selecciona el que quieras utilizar:"
-                       TextWrapping="Wrap" />
-            <ComboBox Name="TelevisionSelection">
-              <ComboBox.ItemTemplate>
-                <DataTemplate>
-                  <TextBlock Text="{Binding DisplayName}" />
-                </DataTemplate>
-              </ComboBox.ItemTemplate>
-            </ComboBox>
-          </StackPanel>
           <TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Foreground="#ACBAD0" />
         </StackPanel>
 
@@ -182,8 +170,32 @@
           <TextBlock Text="PASO 3 · CONEXIÓN" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
           <TextBlock Text="Conexión con el televisor" FontSize="28" FontWeight="Bold" />
-          <TextBlock Name="ConnectionSummary" Text="Comprobando la vía de instalación disponible…"
+          <TextBlock Name="ConnectionSummary" Text="Pulsa «Instalar» cuando estés listo para comenzar."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
+          <ListBox Name="TelevisionCards" IsVisible="False" SelectionMode="Single"
+                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"
+                   Background="Transparent" BorderThickness="0"
+                   SelectionChanged="OnTelevisionSelectionChanged">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Border Background="#14213A" BorderBrush="#40516D" BorderThickness="1"
+                        CornerRadius="10" Padding="14" Margin="0,3">
+                  <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                    <Path Data="M 3,4 L 21,4 L 21,17 L 3,17 Z M 9,21 L 15,21 M 12,17 L 12,21"
+                          Width="28" Height="28" Stretch="Uniform"
+                          Stroke="#A7D3FF" StrokeThickness="1.8"
+                          StrokeLineCap="Round" StrokeLineJoin="Round"
+                          VerticalAlignment="Center" />
+                    <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding DisplayName}" FontSize="16" FontWeight="SemiBold"
+                                 Foreground="#F5F8FF" />
+                      <TextBlock Text="{Binding IpAddress}" FontSize="13" Foreground="#ACBAD0" />
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
           <StackPanel Name="TvStoreHandoffPanel" Spacing="12" IsVisible="False">
             <Border Background="#101A2D" BorderBrush="#3E94F5" BorderThickness="1"
                     CornerRadius="12" Padding="20">
