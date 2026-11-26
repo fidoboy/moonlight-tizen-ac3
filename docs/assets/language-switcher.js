@@ -308,8 +308,15 @@
     return syncPicker;
   }
 
+  function translateMarkedText(root, code) {
+    if (!root) return;
+    for (const element of root.querySelectorAll("[data-i18n]")) {
+      element.textContent = translated(element.dataset.i18n, code);
+    }
+  }
   function applyHomeLanguage(code) {
     document.documentElement.lang = code === "pt-br" ? "pt-BR" : code;
+    translateMarkedText(document.body, code);
     translateRichText(document.body, code);
     translateText(document.body, code);
     translateAttributes(document, code);
