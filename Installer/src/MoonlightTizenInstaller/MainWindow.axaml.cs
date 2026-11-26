@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using Avalonia.Platform;
+using Avalonia.Media.Imaging;
 using MoonlightTizenInstaller.Core.Certificates;
 using MoonlightTizenInstaller.Core.Network;
 using MoonlightTizenInstaller.Core.Installation;
@@ -51,7 +52,7 @@ public sealed partial class MainWindow : Window
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
-        Icon = new WindowIcon(AssetLoader.Open(new Uri("avares://MoonlightTizenInstaller/Assets/moonlight-logo.png")));
+        Icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri("avares://MoonlightTizenInstaller/Assets/moonlight-logo.png"))));
         if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
             finishButton.Click += OnFinishTvStoreHandoffClick;
         if (this.FindControl<Button>("ContinueWithSdbButton") is { } sdbFallbackButton)
@@ -147,7 +148,7 @@ public sealed partial class MainWindow : Window
                 if (_selectedDuid is not null && _certificates.IsReadyForTelevision(_selectedDuid))
                     SetWizardStep(5);
                 else
-                    SetOperationStatus("Crea o renueva el certificado Partner para continuar.");
+                    OnGenerateCertificateClick(this, e);
                 break;
             case 5:
                 if (this.FindControl<Button>("InstallWgtButton") is { IsEnabled: true } install)
