@@ -23,6 +23,7 @@ public sealed partial class MainWindow : Window
     private readonly TvStoreHandoffService _tvStoreInstaller = new();
     private readonly string _bundledWgtPath = Path.Combine(Path.GetTempPath(), $"MoonlightTizenInstaller-{Guid.NewGuid():N}.wgt");
     private Bitmap? _brandBitmap;
+    private WindowIcon? _windowIcon;
     private string? _selectedDuid;
     private DiscoveredTelevision? _selectedTelevision;
     private bool _discoveryInProgress;
@@ -80,7 +81,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<Image>("MoonlightBrandLogo") is { } logo)
             logo.Source = _brandBitmap;
         using (var iconStream = AssetLoader.Open(new Uri("avares://MoonlightTizenInstaller/Assets/moonlight.ico")))
-            Icon = new WindowIcon(iconStream);
+            _windowIcon = Icon = new WindowIcon(iconStream);
 
         if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
             finishButton.Click += OnFinishTvStoreHandoffClick;
@@ -562,11 +563,22 @@ public sealed partial class MainWindow : Window
             {
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
-                Children = { storeIcon }
+                Children =
+                {
+                    new Viewbox
+                    {
+                        Width = 48,
+                        Height = 48,
+                        Stretch = Avalonia.Media.Stretch.Uniform,
+                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                        VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                        Child = storeIcon
+                    }
+                }
             }
         };
-        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
+        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
+        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
         var useButton = new Button
         {
             Content = InstallerLocalization.T("Sí, utilizar TV-Store"),
@@ -605,7 +617,7 @@ public sealed partial class MainWindow : Window
         };
         var dialog = new Window
         {
-            Width = 560,
+            Width = 596,
             SizeToContent = Avalonia.Controls.SizeToContent.Height,
             CanResize = false,
             SystemDecorations = SystemDecorations.None,
@@ -616,10 +628,8 @@ public sealed partial class MainWindow : Window
             Foreground = Avalonia.Media.Brushes.White,
             Content = new Border
             {
-                Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#101A2D")),
-                BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#40516D")),
-                BorderThickness = new Avalonia.Thickness(1),
-                CornerRadius = new Avalonia.CornerRadius(14),
+                Margin = new Avalonia.Thickness(18),
+                Background = Avalonia.Media.Brushes.Transparent,
                 BoxShadow = new Avalonia.Media.BoxShadows(new Avalonia.Media.BoxShadow
                 {
                     Blur = 28,
@@ -627,21 +637,28 @@ public sealed partial class MainWindow : Window
                     Color = Avalonia.Media.Color.Parse("#A0000000"),
                     Spread = 2
                 }),
-                ClipToBounds = true,
-                Child = content
+                Child = new Border
+                {
+                    Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#101A2D")),
+                    BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#40516D")),
+                    BorderThickness = new Avalonia.Thickness(1),
+                    CornerRadius = new Avalonia.CornerRadius(14),
+                    ClipToBounds = true,
+                    Child = content
+                }
             }
         };
         useButton.Click += (_, _) => dialog.Close(true);
         normalButton.Click += (_, _) => dialog.Close(false);
-        var previousOpacity = Opacity;
+        var overlay = this.FindControl<Border>("ModalOverlay");
+        if (overlay is not null) overlay.IsVisible = true;
         try
         {
-            Opacity = 0.48;
             return await dialog.ShowDialog<bool>(this);
         }
         finally
         {
-            Opacity = previousOpacity;
+            if (overlay is not null) overlay.IsVisible = false;
         }
     }
 
