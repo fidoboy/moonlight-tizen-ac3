@@ -137,6 +137,14 @@
                          Foreground="#D6E1F2" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
+          <TextBlock Text="Seleccione el tipo de instalación de Moonlight que quiere utilizar."
+                     Foreground="#D6E1F2" TextWrapping="Wrap" Margin="0,2,0,0" />
+          <StackPanel Orientation="Horizontal" Spacing="28" Margin="0,0,0,4">
+            <RadioButton Name="StandardWgtOption" GroupName="MoonlightWgtVariant"
+                         Content="WGT Normal" IsChecked="True" />
+            <RadioButton Name="ForceGmWgtOption" GroupName="MoonlightWgtVariant"
+                         Content="WGT Modo Juego forzado" />
+          </StackPanel>
         </StackPanel>
 
         <StackPanel Name="TelevisionPage" Spacing="14" IsVisible="False">
