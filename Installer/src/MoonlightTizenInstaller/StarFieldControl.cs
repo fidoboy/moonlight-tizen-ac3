@@ -17,7 +17,7 @@ public sealed class StarFieldControl : OpenGlControlBase
 {
     private const int StarCount = 1100;
     private const float MaxDepth = 1500f;
-    private const float SpeedPixelsPerSecond = 58f;
+    private const float SpeedPixelsPerSecond = 70f;
 
     private const uint VertexShaderType = 0x8B31;
     private const uint FragmentShaderType = 0x8B30;
@@ -75,8 +75,10 @@ public sealed class StarFieldControl : OpenGlControlBase
             v_alpha = 1.0;
             v_color = a_color;
 
-            // Match the website's depth-based radius and its subtle per-star size range.
-            float radius = (1.0 - z / 1500.0) * a_size * 3.6;
+            // Increase size gently with depth: nearby stars are only about 25% larger
+            // than distant ones, keeping the perspective subtle.
+            float depthScale = 0.85 + (1.0 - z / 1500.0) * 0.25;
+            float radius = depthScale * a_size * 3.6;
             gl_PointSize = max(1.0, radius * u_scale);
         }
         """;
