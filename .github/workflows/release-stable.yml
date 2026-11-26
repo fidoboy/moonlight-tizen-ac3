@@ -600,9 +600,24 @@ jobs:
           fi
           echo "Deleted unpublished release tag $RELEASE_TAG after workflow failure or cancellation."
 
+  validate-installer:
+    name: Validate installer translations
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v7
+        with:
+          ref: master
+
+      - name: Validate installer translations
+        run: python3 scripts/check-installer-localization.py
+
   build-installers:
     name: Build installer (${{ matrix.rid }})
-    needs: publish
+    needs:
+      - publish
+      - validate-installer
     runs-on: ${{ matrix.rid == 'win-x64' && 'windows-latest' || 'ubuntu-latest' }}
     timeout-minutes: 30
     strategy:
