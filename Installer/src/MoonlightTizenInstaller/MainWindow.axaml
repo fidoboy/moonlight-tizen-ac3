@@ -141,9 +141,9 @@
                      Foreground="#D6E1F2" TextWrapping="Wrap" Margin="0,0,0,0" />
           <Grid ColumnDefinitions="*,*" Margin="36,-4,36,4">
             <RadioButton Grid.Column="0" Name="StandardWgtOption" GroupName="MoonlightWgtVariant"
-                         HorizontalAlignment="Center" Content="WGT Normal" IsChecked="True" />
+                         HorizontalAlignment="Center" Content="Normal package" IsChecked="True" />
             <RadioButton Grid.Column="1" Name="ForceGmWgtOption" GroupName="MoonlightWgtVariant"
-                         HorizontalAlignment="Center" Content="WGT Modo Juego forzado" />
+                         HorizontalAlignment="Center" Content="Forced game mode package" />
           </Grid>
         </StackPanel>
 
