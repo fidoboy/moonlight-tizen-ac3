@@ -39,8 +39,8 @@
             </TextBlock.Foreground>
           </TextBlock>
           <TextBlock Text="Enhanced version · with Dolby Digital audio support"
-                     FontFamily="Inter" FontSize="12" Foreground="#ACBAD0"
-                     HorizontalAlignment="Right" Margin="0,-16,0,0" />
+                     FontFamily="Inter" FontSize="13" Foreground="#ACBAD0"
+                     HorizontalAlignment="Right" Margin="0,-15,0,0" />
         </StackPanel>
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top"
                     HorizontalAlignment="Right" Spacing="2" Margin="0,-12,-16,0">
