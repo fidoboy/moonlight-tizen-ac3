@@ -24,6 +24,7 @@ public sealed partial class MainWindow : Window
     private readonly TvStoreHandoffService _tvStoreInstaller = new();
     private string? _bundledWgtPath;
     private string? _bundledWgtResourceName;
+    private string? _selectedWgtResourceName;
     private Bitmap? _brandBitmap;
     private WindowIcon? _windowIcon;
     private string? _selectedDuid;
@@ -188,7 +189,7 @@ public sealed partial class MainWindow : Window
         switch (_wizardStep)
         {
             case 1:
-                _bundledWgtResourceName = this.FindControl<RadioButton>("ForceGmWgtOption")?.IsChecked == true
+                _selectedWgtResourceName = this.FindControl<RadioButton>("ForceGmWgtOption")?.IsChecked == true
                     ? "Moonlight-ForceGM.wgt"
                     : "Moonlight.wgt";
                 if (!await EnsureBundledWgtAvailableAsync())
@@ -238,7 +239,7 @@ public sealed partial class MainWindow : Window
 
     private async Task<bool> EnsureBundledWgtAvailableAsync()
     {
-        var resourceName = _bundledWgtResourceName ?? "Moonlight.wgt";
+        var resourceName = _selectedWgtResourceName ?? "Moonlight.wgt";
         try
         {
             if (_bundledWgtPath is not null && _bundledWgtResourceName == resourceName &&
@@ -248,19 +249,23 @@ public sealed partial class MainWindow : Window
             if (_bundledWgtPath is not null && File.Exists(_bundledWgtPath))
                 File.Delete(_bundledWgtPath);
 
-            _bundledWgtPath = Path.Combine(
+            var outputPath = Path.Combine(
                 Path.GetTempPath(), $"MoonlightTizenInstaller-{Guid.NewGuid():N}.wgt");
+            _bundledWgtPath = outputPath;
 
             await using var resource = typeof(MainWindow).Assembly.GetManifestResourceStream(resourceName);
             if (resource is null)
                 throw new FileNotFoundException($"El paquete {resourceName} no está integrado en el ejecutable.");
 
             await using var destination = new FileStream(
-                _bundledWgtPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                outputPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
             await resource.CopyToAsync(destination);
 
-            if (new FileInfo(_bundledWgtPath).Length > 0)
+            if (new FileInfo(outputPath).Length > 0)
+            {
+                _bundledWgtResourceName = resourceName;
                 return true;
+            }
         }
         catch
         {
