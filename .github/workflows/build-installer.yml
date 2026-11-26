@@ -15,7 +15,18 @@ permissions:
   contents: read
 
 jobs:
+  localization:
+    name: Validate installer translations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Validate localization keys and translations
+        run: python3 scripts/check-installer-localization.py
+
   build:
+    needs: localization
     name: Build installer (${{ matrix.rid }})
     runs-on: ubuntu-latest
     strategy:
