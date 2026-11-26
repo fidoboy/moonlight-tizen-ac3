@@ -30,7 +30,7 @@ jobs:
   build:
     needs: localization
     name: Build installer (${{ matrix.rid }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.rid == 'win-x64' && 'windows-latest' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -68,6 +68,25 @@ jobs:
 
       - name: Publish self-contained single-file executable
         run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output artifacts/publish
+
+      - name: Smoke-test Windows application startup
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          $executable = Join-Path $PWD "artifacts/publish/MoonlightTizenInstaller.exe"
+          $process = Start-Process -FilePath $executable -PassThru
+          try {
+            Start-Sleep -Seconds 10
+            $process.Refresh()
+            if ($process.HasExited) {
+              throw "MoonlightTizenInstaller.exe exited during the startup smoke test (exit code $($process.ExitCode))."
+            }
+          }
+          finally {
+            if (-not $process.HasExited) {
+              Stop-Process -Id $process.Id -Force
+            }
+          }
 
       - name: Prepare single-file distribution
         shell: bash
