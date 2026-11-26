@@ -25,10 +25,10 @@
       </Border.Background>
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center" Background="Transparent">
         <local:StarFieldControl Grid.ColumnSpan="3" IsHitTestVisible="False" Opacity="0.9" />
-        <Image Name="MoonlightBrandLogo" Width="88" Height="88" Stretch="Uniform" Margin="0,0,18,0" />
+        <Image Name="MoonlightBrandLogo" Width="72" Height="72" Stretch="Uniform" Margin="0,0,18,0" />
         <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="3"
                     Background="Transparent">
-          <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="46"
+          <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="50"
                      FontWeight="ExtraBold">
             <TextBlock.Foreground>
               <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
