@@ -20,7 +20,7 @@
         <Image Name="MoonlightBrandLogo" Width="104" Height="104" Stretch="Uniform" Margin="0,0,18,0" />
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
           <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="43"
-                     FontWeight="ExtraBold" CharacterSpacing="-2.2">
+                     FontWeight="ExtraBold">
             <TextBlock.Foreground>
               <LinearGradientBrush StartPoint="0%,0%" EndPoint="100%,0%">
                 <GradientStop Color="#FFFFFF" Offset="0.14" />
@@ -76,7 +76,7 @@
       <Grid Margin="42,34">
         <StackPanel Name="WelcomePage" Spacing="18" IsVisible="True">
           <TextBlock Text="INSTALADOR OFICIAL DE ESTE PROYECTO" Foreground="#A7D3FF"
-                     FontSize="12" FontWeight="Bold" CharacterSpacing="2" />
+                     FontSize="12" FontWeight="Bold" />
           <TextBlock Text="Instala Moonlight en tu Samsung TV."
                      FontSize="32" FontWeight="Bold" FontFamily="Inter" TextWrapping="Wrap" />
           <TextBlock Text="Este asistente detectará tu televisor y utilizará primero TV-Store cuando esté disponible. Si no es posible completar la instalación por esa vía, continuará automáticamente mediante SDB."
@@ -97,7 +97,7 @@
 
         <StackPanel Name="TelevisionPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 2 · TELEVISOR" Foreground="#A7D3FF" FontSize="12"
-                     FontWeight="Bold" CharacterSpacing="2" />
+                     FontWeight="Bold" />
           <TextBlock Text="Buscando tu Samsung TV" FontSize="28" FontWeight="Bold" />
           <TextBlock Text="Se detectan automáticamente los televisores de la red local. No se solicitará el DUID manualmente."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
@@ -144,7 +144,7 @@
 
         <StackPanel Name="ConnectionPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 3 · CONEXIÓN" Foreground="#A7D3FF" FontSize="12"
-                     FontWeight="Bold" CharacterSpacing="2" />
+                     FontWeight="Bold" />
           <TextBlock Text="Conexión con el televisor" FontSize="28" FontWeight="Bold" />
           <TextBlock Name="ConnectionSummary" Text="Comprobando la vía de instalación disponible…"
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
@@ -167,7 +167,7 @@
 
         <StackPanel Name="CertificatePage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 4 · CERTIFICADO" Foreground="#A7D3FF" FontSize="12"
-                     FontWeight="Bold" CharacterSpacing="2" />
+                     FontWeight="Bold" />
           <TextBlock Text="Preparar la firma de Samsung" FontSize="28" FontWeight="Bold" />
           <TextBlock Text="El instalador reutiliza automáticamente un certificado Partner válido guardado de una ejecución anterior. Solo abrirá Samsung si hace falta crear uno o renovarlo."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
@@ -185,7 +185,7 @@
 
         <StackPanel Name="InstallationPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 5 · INSTALACIÓN" Foreground="#A7D3FF" FontSize="12"
-                     FontWeight="Bold" CharacterSpacing="2" />
+                     FontWeight="Bold" />
           <TextBlock Text="Instalar Moonlight" FontSize="28" FontWeight="Bold" />
           <TextBlock Text="El paquete se firmará con el perfil Partner y se instalará en el televisor mediante SDB."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
