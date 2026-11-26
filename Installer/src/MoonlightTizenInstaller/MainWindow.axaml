@@ -191,12 +191,27 @@
           <TextBlock Text="Conexión con el televisor" FontSize="28" FontWeight="Bold" />
           <TextBlock Name="ConnectionSummary" Text="Pulsa «Instalar» cuando estés listo para comenzar."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
+          <Border Name="InvalidDeviceWarning" IsVisible="False" Background="#241B0D"
+                  BorderBrush="#D99A32" BorderThickness="1" CornerRadius="10"
+                  Padding="13" Margin="0,0,0,2">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+              <Path Data="M 12,2 L 22,21 L 2,21 Z M 12,8 L 12,14 M 12,17 L 12,17"
+                    Width="18" Height="18" Stretch="Uniform" Stroke="#E8B04B"
+                    StrokeThickness="1.7" StrokeLineCap="Round"
+                    VerticalAlignment="Top" />
+              <TextBlock Grid.Column="1"
+                         Text="Some detected TVs are not configured correctly, so the installer cannot use them to transfer the application. Check that the Host PC IP value in Developer Mode is correct. After correcting it, click Back to scan again, or close and reopen the installer."
+                         Foreground="#E8B04B" TextWrapping="Wrap" FontSize="13"
+                         VerticalAlignment="Center" />
+            </Grid>
+          </Border>
           <ListBox Name="TelevisionCards" IsVisible="False" SelectionMode="Single"
                    HorizontalAlignment="Stretch"
                    Background="Transparent" BorderThickness="0"
                    SelectionChanged="OnTelevisionSelectionChanged">
             <ListBox.Styles>
               <Style Selector="ListBoxItem">
+                <Setter Property="IsEnabled" Value="{Binding IsDeveloperModeIpValid}" />
                 <Setter Property="HorizontalContentAlignment" Value="Stretch" />
                 <Setter Property="Background" Value="Transparent" />
                 <Setter Property="BorderBrush" Value="Transparent" />
@@ -231,10 +246,20 @@
                       <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                         <TextBlock Text="{Binding IpAddress}" FontSize="13" Foreground="#ACBAD0"
                                    VerticalAlignment="Center" />
-                        <Border Width="8" Height="8" CornerRadius="4" Background="#35C978"
-                                VerticalAlignment="Center" />
-                        <TextBlock Text="Preparado" FontSize="12" Foreground="#35C978"
-                                   VerticalAlignment="Center" />
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                    IsVisible="{Binding IsDeveloperModeIpValid}">
+                          <Border Width="8" Height="8" CornerRadius="4" Background="#35C978"
+                                  VerticalAlignment="Center" />
+                          <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="#35C978"
+                                     VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center"
+                                    IsVisible="{Binding IsDeveloperModeIpInvalid}">
+                          <Border Width="8" Height="8" CornerRadius="4" Background="#EF5350"
+                                  VerticalAlignment="Center" />
+                          <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="#EF7773"
+                                     VerticalAlignment="Center" />
+                        </StackPanel>
                       </StackPanel>
                     </StackPanel>
                   </Grid>
