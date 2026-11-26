@@ -444,7 +444,7 @@ public sealed partial class MainWindow : Window
             title.Text = InstallerLocalization.T("Resultado de la transferencia");
         if (this.FindControl<TextBlock>("CertificatePageDescription") is { } description)
             description.IsVisible = false;
-        if (this.FindControl<StackPanel>("TvStoreResultPanel") is { } resultPanel)
+        if (this.FindControl<Grid>("TvStoreResultPanel") is { } resultPanel)
             resultPanel.IsVisible = true;
         if (this.FindControl<Border>("TvStoreResultIconCircle") is { } iconCircle)
         {
