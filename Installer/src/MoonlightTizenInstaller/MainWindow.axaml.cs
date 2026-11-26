@@ -13,10 +13,10 @@ public sealed partial class MainWindow : Window
 {
     private readonly CertificateManager _certificates;
     private readonly TelevisionDiscoveryService _discovery;
-    private readonly TvStoreInstallationService _tvStoreInstaller = new();
+    private readonly SdbInstallationService _sdbInstaller = new();
     private readonly string _bundledWgtPath = Path.Combine(AppContext.BaseDirectory, "Moonlight.wgt");
     private string? _selectedDuid;
-    private string? _selectedTvIp;
+    private DiscoveredTelevision? _selectedTelevision;
     private bool _discoveryInProgress;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
@@ -89,7 +89,7 @@ public sealed partial class MainWindow : Window
 
         _discoveryInProgress = true;
         _selectedDuid = null;
-        _selectedTvIp = null;
+        _selectedTelevision = null;
         SetTelevisionActionsEnabled(false);
         var searching = this.FindControl<StackPanel>("TelevisionSearchingPanel");
         var activation = this.FindControl<StackPanel>("TelevisionActivationPanel");
@@ -109,7 +109,7 @@ public sealed partial class MainWindow : Window
         }
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
-        if (searchStatus is not null) searchStatus.Text = "Buscando televisores Samsung por red (el DUID se consultará solo si SDB está disponible)…";
+        if (searchStatus is not null) searchStatus.Text = "Buscando televisores Samsung y obteniendo automáticamente el DUID mediante SDB…";
 
         try
         {
@@ -122,7 +122,7 @@ public sealed partial class MainWindow : Window
             if (devices.Count == 0)
             {
                 ShowDeveloperModeInstructions(
-                    "No se ha detectado ninguna TV Samsung en la red local. Comprueba que está encendida y conectada a la misma red que este equipo.");
+                    "No se ha detectado ninguna TV Samsung en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor.");
                 return;
             }
 
@@ -176,8 +176,6 @@ public sealed partial class MainWindow : Window
     {
         _selectedTelevision = device;
         _selectedDuid = device.Duid;
-        _selectedTvIp = device.IpAddress;
-        _selectedSdbPort = device.SdbPort;
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
         if (TizenDuid.IsValid(device.Duid))
@@ -201,8 +199,6 @@ public sealed partial class MainWindow : Window
         {
             _selectedTelevision = selected;
             _selectedDuid = selected.Duid;
-            _selectedTvIp = selected.IpAddress;
-            _selectedSdbPort = selected.SdbPort;
             if (TizenDuid.IsValid(selected.Duid))
             {
                 if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
@@ -221,8 +217,6 @@ public sealed partial class MainWindow : Window
         {
             _selectedTelevision = null;
             _selectedDuid = null;
-            _selectedTvIp = null;
-            _selectedSdbPort = DiscoveredTelevision.DirectSdbPort;
             if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
             SetTelevisionActionsEnabled(false);
         }
