@@ -949,7 +949,7 @@ public sealed partial class MainWindow : Window
                 Directory.CreateDirectory(temporaryDirectory);
                 SetOperationStatus(InstallerLocalization.T("Comprobando el perfil de firma Partner…"));
                 var profile = _certificates.GetUsableForTelevision(duid, level)
-                    ?? throw new InvalidOperationException(InstallerLocalization.T("El certificado Partner no está disponible o ha caducado."));
+                    ?? throw new InvalidOperationException(InstallerLocalization.T("The Partner certificate is unavailable or has expired. Generate or renew it before installing."));
 
                 await _certificates.SignWgtAsync(
                     _bundledWgtPath, signedPackagePath, profile,
