@@ -3,6 +3,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using MoonlightTizenInstaller.Core.Certificates;
 using MoonlightTizenInstaller.Core.Network;
+using MoonlightTizenInstaller.Core.Installation;
 using Apps2Samsung.Interfaces;
 using Apps2Samsung.Models;
 
@@ -12,8 +13,10 @@ public sealed partial class MainWindow : Window
 {
     private readonly CertificateManager _certificates;
     private readonly TelevisionDiscoveryService _discovery;
+    private readonly TvStoreInstallationService _tvStoreInstaller = new();
     private readonly string _bundledWgtPath = Path.Combine(AppContext.BaseDirectory, "Moonlight.wgt");
     private string? _selectedDuid;
+    private string? _selectedTvIp;
     private bool _discoveryInProgress;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
@@ -86,6 +89,7 @@ public sealed partial class MainWindow : Window
 
         _discoveryInProgress = true;
         _selectedDuid = null;
+        _selectedTvIp = null;
         SetTelevisionActionsEnabled(false);
         var searching = this.FindControl<StackPanel>("TelevisionSearchingPanel");
         var activation = this.FindControl<StackPanel>("TelevisionActivationPanel");
@@ -170,6 +174,7 @@ public sealed partial class MainWindow : Window
     private void SelectTelevision(DiscoveredTelevision device)
     {
         _selectedDuid = device.Duid;
+        _selectedTvIp = device.IpAddress;
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching)
             searching.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation)
@@ -186,6 +191,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is DiscoveredTelevision selected)
         {
             _selectedDuid = selected.Duid;
+            _selectedTvIp = selected.IpAddress;
             if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
                 status.Text = $"Televisor seleccionado: {selected.DisplayName}. DUID: {selected.Duid}";
             SetTelevisionActionsEnabled(true);
@@ -193,6 +199,7 @@ public sealed partial class MainWindow : Window
         else
         {
             _selectedDuid = null;
+            _selectedTvIp = null;
             SetTelevisionActionsEnabled(false);
         }
     }
@@ -203,6 +210,8 @@ public sealed partial class MainWindow : Window
             ensure.IsEnabled = enabled && !_discoveryInProgress;
         if (this.FindControl<Button>("SignWgtButton") is { } sign)
             sign.IsEnabled = enabled && !_discoveryInProgress;
+        if (this.FindControl<Button>("InstallWgtButton") is { } install)
+            install.IsEnabled = _selectedTvIp is not null && !_discoveryInProgress;
     }
 
     private string? GetSelectedDuid() => _selectedDuid;
@@ -320,6 +329,50 @@ public sealed partial class MainWindow : Window
         {
             if (this.FindControl<Button>("SignWgtButton") is { } sign)
                 sign.IsEnabled = _selectedDuid is not null;
+        }
+    }
+
+    private async void OnInstallWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        var televisionIp = _selectedTvIp;
+        if (string.IsNullOrWhiteSpace(televisionIp))
+        {
+            SetOperationStatus("Es necesario seleccionar un televisor.");
+            return;
+        }
+
+        var button = this.FindControl<Button>("InstallWgtButton");
+        if (button is not null) button.IsEnabled = false;
+
+        try
+        {
+            SetOperationStatus("Preparando el envío a Apps2Samsung TV-Store…");
+            var result = await _tvStoreInstaller.SendForInstallationAsync(
+                televisionIp,
+                _bundledWgtPath,
+                new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+
+            SetOperationStatus(
+                $"Moonlight.wgt se ha transferido a TV-Store ({result.Size:N0} bytes; SHA-256 verificado)." +
+                Environment.NewLine +
+                (result.TvStoreOpened
+                    ? "Mira la pantalla del televisor y confirma la instalación pulsando «Instalar»."
+                    : "Abre Apps2Samsung TV-Store en el televisor y confirma la instalación pulsando «Instalar».") +
+                Environment.NewLine +
+                "TV-Store realizará la firma con el certificado que tenga configurado.");
+        }
+        catch (OperationCanceledException)
+        {
+            SetOperationStatus("Envío cancelado.");
+        }
+        catch (Exception ex)
+        {
+            SetOperationStatus($"No se pudo enviar Moonlight a TV-Store: {ex.Message}");
+        }
+        finally
+        {
+            if (button is not null)
+                button.IsEnabled = _selectedTvIp is not null && !_discoveryInProgress;
         }
     }
 
