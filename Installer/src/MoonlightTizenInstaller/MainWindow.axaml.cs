@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
+using System.Globalization;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Markup.Xaml;
@@ -281,7 +282,7 @@ public sealed partial class MainWindow : Window
             if (devices.Count == 0)
             {
                 ShowDeveloperModeInstructions(
-                    "No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor.");
+                    InstallerLocalization.T("No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor."));
                 return;
             }
 
@@ -299,7 +300,7 @@ public sealed partial class MainWindow : Window
             if (searching is not null) searching.IsVisible = false;
             if (selectionPanel is not null) selectionPanel.IsVisible = true;
             if (status is not null)
-                status.Text = $"Se han detectado {devices.Count} televisores con TizenOS. Selecciona uno y pulsa «Siguiente» para continuar.";
+                status.Text = InstallerLocalization.T($"Se han detectado {{0}} televisores con TizenOS. Selecciona uno y pulsa «Siguiente» para continuar.").Replace("{0}", devices.Count.ToString(CultureInfo.CurrentCulture));
             SetWizardStep(2);
         }
         catch (OperationCanceledException)
