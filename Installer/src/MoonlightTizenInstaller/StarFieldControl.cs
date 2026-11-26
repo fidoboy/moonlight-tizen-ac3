@@ -467,7 +467,12 @@ public sealed class StarFieldControl : OpenGlControlBase
         public int GetUniformLocation(uint program, string name) => _getUniformLocation(program, name);
         public int GetAttribLocation(uint program, string name) => _getAttribLocation(program, name);
         public void GenBuffers(int count, out uint buffer) => _genBuffers(count, out buffer);
-        public void GenVertexArrays(int count, out uint array)\n        {\n            if (_genVertexArrays is null)\n                throw new NotSupportedException("Vertex array objects are unavailable.");\n            _genVertexArrays(count, out array);\n        }
+        public void GenVertexArrays(int count, out uint array)
+        {
+            if (_genVertexArrays is null)
+                throw new NotSupportedException("Vertex array objects are unavailable.");
+            _genVertexArrays(count, out array);
+        }
         public void BindVertexArray(uint array) => _bindVertexArray?.Invoke(array);
         public void DeleteVertexArrays(int count, ref uint array) => _deleteVertexArrays?.Invoke(count, ref array);
         public void DeleteBuffers(int count, ref uint buffer) => _deleteBuffers(count, ref buffer);
