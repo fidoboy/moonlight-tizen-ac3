@@ -29,6 +29,7 @@ public sealed partial class MainWindow : Window
     private bool _tvStoreDeclined;
     private bool _tvStoreChosen;
     private bool _installationCompleted;
+    private bool _manualLanguageSelected;
     private int _wizardStep = 1;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
@@ -93,6 +94,7 @@ public sealed partial class MainWindow : Window
             return;
 
         InstallerLocalization.SelectLocale(index);
+        _manualLanguageSelected = true;
         InstallerLocalization.Apply(this);
         if (this.FindControl<Button>("WizardNextButton") is { } startButton)
             startButton.IsEnabled = true;
@@ -154,7 +156,7 @@ public sealed partial class MainWindow : Window
             };
             next.IsEnabled = _wizardStep switch
             {
-                1 => true,
+                1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
                 2 => _selectedTelevision is not null && !_discoveryInProgress,
                 3 => TizenDuid.IsValid(_selectedDuid),
                 4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
