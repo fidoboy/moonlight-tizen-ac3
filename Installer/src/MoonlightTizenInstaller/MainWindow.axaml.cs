@@ -281,7 +281,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             if (this.FindControl<Button>("SignWgtButton") is { } sign)
-                sign.IsEnabled = _selectedDuid is not null;
+                sign.IsEnabled = _selectedDuid is not null && _bundledWgtAvailable;
         }
     }
 
