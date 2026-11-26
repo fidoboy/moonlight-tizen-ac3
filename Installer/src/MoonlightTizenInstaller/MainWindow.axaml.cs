@@ -164,7 +164,7 @@ public sealed partial class MainWindow : Window
                 : _wizardStep switch
                 {
                     1 => "Comenzar",
-                    2 => "Continuar",
+                    2 => "Next",
                     3 => "Siguiente",
                     4 => "Instalar",
                     _ => "Finalizar"
