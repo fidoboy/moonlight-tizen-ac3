@@ -36,7 +36,29 @@ jobs:
           dotnet-version: 10.0.x
 
       - name: Restore
-        run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj
+        run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --runtime ${{ matrix.rid }}
 
       - name: Build
-        run: dotnet build Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --no-restore
+        run: dotnet build Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --no-restore
+
+      - name: Publish self-contained application
+        run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output artifacts/publish
+
+      - name: Package application
+        shell: bash
+        run: |
+          mkdir -p artifacts/dist
+          if [ "${{ matrix.rid }}" = "linux-x64" ]; then
+            tar -C artifacts/publish -czf "artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.tar.gz" .
+          else
+            cd artifacts/publish
+            zip -qr "../dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip" .
+          fi
+
+      - name: Upload downloadable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoonlightTizenInstaller-${{ matrix.rid }}
+          path: artifacts/dist/*
+          if-no-files-found: error
+          retention-days: 30
