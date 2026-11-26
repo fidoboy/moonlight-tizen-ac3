@@ -116,6 +116,8 @@ public sealed partial class MainWindow : Window
         for (var number = 1; number <= 5; number++)
         {
             var active = number <= _wizardStep;
+            if (number < 5 && this.FindControl<Border>($"StepConnector{number}") is { } connector)
+                connector.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(number < _wizardStep ? "#78B8FF" : "#40516D"));
             if (this.FindControl<Border>($"StepIndicator{number}") is { } indicator)
             {
                 indicator.Background = new Avalonia.Media.SolidColorBrush(
@@ -152,8 +154,8 @@ public sealed partial class MainWindow : Window
                 {
                     1 => "Comenzar",
                     2 => "Continuar",
-                    3 => "Instalar",
-                    4 => "Ir a instalación",
+                    3 => "Siguiente",
+                    4 => "Instalar",
                     _ => "Finalizar"
                 });
             next.IsEnabled = (_tvStoreHandoff && _wizardStep == 4) || (_wizardStep switch
@@ -719,6 +721,8 @@ public sealed partial class MainWindow : Window
             normalPanel.IsVisible = hasDuid && !certificateReady;
         if (this.FindControl<Border>("CertificateReadyPanel") is { } readyPanel)
             readyPanel.IsVisible = hasDuid && certificateReady;
+        if (this.FindControl<StackPanel>("CertificateReadyIntro") is { } readyIntro)
+            readyIntro.IsVisible = hasDuid && certificateReady;
         if (certificateReady && this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
             certificateStatus.IsVisible = false;
         if (hasDuid && certificateReady)
