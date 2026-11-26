@@ -640,7 +640,7 @@ public sealed partial class MainWindow : Window
     {
         var message = new TextBlock
         {
-            Text = InstallerLocalization.T($"Se ha detectado que TV-Store está instalado en uno de tus dispositivos ({{0}}). ¿Quieres utilizarlo para completar allí la instalación de Moonlight?").Replace("{0}", television.IpAddress),
+            Text = InstallerLocalization.T($"TV-Store is installed on one of your devices ({{0}}). Would you like to try using it to complete the Moonlight installation there?").Replace("{0}", string.IsNullOrWhiteSpace(television.Name) ? television.IpAddress : $"{television.Name} ({television.IpAddress})"),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             FontSize = 15
