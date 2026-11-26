@@ -6,6 +6,8 @@ using Avalonia.Threading;
 using MoonlightTizenInstaller.Core.Certificates;
 using MoonlightTizenInstaller.Core.Network;
 using MoonlightTizenInstaller.Core.Installation;
+using Apps2Samsung.Interfaces;
+using Apps2Samsung.Models;
 
 namespace MoonlightTizenInstaller;
 
@@ -490,8 +492,9 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<Button>("InstallWgtButton") is { } install)
             install.IsEnabled = certificateReady && !_discoveryInProgress;
 
-        if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } status && hasDuid)
-            status.Text = certificateReady
+        var certificateStatus = this.FindControl<TextBlock>("CertificateOperationStatus");
+        if (hasDuid && certificateStatus is not null)
+            certificateStatus.Text = certificateReady
                 ? "El certificado Partner guardado en este equipo es válido y cubre este televisor."
                 : "No hay un certificado Partner válido para este televisor. Pulsa «Crear o renovar certificado con Samsung» para obtenerlo.";
 
@@ -550,9 +553,14 @@ public sealed partial class MainWindow : Window
     {
         var television = _selectedTelevision;
         var duid = GetSelectedDuid();
-        if (television is null || string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
+        if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
             SetOperationStatus("No se puede instalar: es obligatorio detectar automáticamente un DUID válido mediante SDB.");
+            return;
+        }
+        if (television is null)
+        {
+            SetOperationStatus("No se ha seleccionado un televisor.");
             return;
         }
 
