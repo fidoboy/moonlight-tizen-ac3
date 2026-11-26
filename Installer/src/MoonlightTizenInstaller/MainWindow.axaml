@@ -244,17 +244,34 @@
           <TextBlock Name="CertificateStepLabel" Text="PASO 4 · CERTIFICADO" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
           <TextBlock Name="CertificatePageTitle" Text="Preparar el certificado de instalación" FontSize="28" FontWeight="Bold" />
-          <TextBlock Name="CertificatePageDescription" Text="El instalador reutiliza automáticamente un certificado Partner válido guardado de una ejecución anterior. Solo abrirá el portal de certificados si hace falta crear uno o renovarlo."
-                     Foreground="#ACBAD0" TextWrapping="Wrap" />
           <Border Name="CertificateNormalPanel" Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
                   CornerRadius="12" Padding="20">
             <StackPanel Spacing="12">
-              <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Foreground="#D6E1F2" />
+              <TextBlock Text="Para continuar, necesitas generar un certificado. Inicia sesión en el sitio web de Samsung con tu cuenta o crea una si aún no tienes una."
+                         TextWrapping="Wrap" Foreground="#D6E1F2" />
+              <TextBlock Name="CertificateOperationStatus" IsVisible="False" TextWrapping="Wrap" Foreground="#D6E1F2" />
               <Button Name="GenerateCertificateButton"
-                      Content="Crear o renovar certificado Partner"
+                      Content="Abrir sitio web para iniciar sesión ↗"
                       HorizontalAlignment="Left" IsEnabled="False"
                       Click="OnGenerateCertificateClick" Classes="primary" />
             </StackPanel>
+          </Border>
+          <Border Name="CertificateReadyPanel" IsVisible="False" Background="#101A2D"
+                  BorderBrush="#35C978" BorderThickness="1" CornerRadius="12" Padding="20">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
+              <Border Width="56" Height="56" CornerRadius="12" Background="#173F2B"
+                      HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Path Data="M 12,4 L 36,4 L 36,44 L 12,44 Z M 18,14 L 30,14 M 18,22 L 30,22 M 18,30 L 27,30"
+                      Width="32" Height="40" Stretch="Uniform" Stroke="#65D99A"
+                      StrokeThickness="2.5" StrokeLineCap="Round"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+              </Border>
+              <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="Certificado disponible" FontSize="18" FontWeight="SemiBold" />
+                <TextBlock Name="CertificateIssuerDetails" TextWrapping="Wrap" Foreground="#D6E1F2" />
+                <TextBlock Name="CertificateValidityDetails" TextWrapping="Wrap" Foreground="#ACBAD0" />
+              </StackPanel>
+            </Grid>
           </Border>
           <Grid Name="TvStoreResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
                 IsVisible="False" VerticalAlignment="Center">
@@ -265,7 +282,7 @@
                 <Path Name="TvStoreResultIcon" Data="M 3,12 L 9,18 L 21,6"
                       Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
                       StrokeThickness="2.8" StrokeLineCap="Round"
-                      HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,4,0,0" />
               </Grid>
             </Border>
             <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
