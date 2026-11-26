@@ -145,9 +145,15 @@ public sealed partial class MainWindow : Window
         if (back is not null)
             back.IsVisible = _wizardStep > 1 && !_tvStoreHandoff && _wizardStep < 5;
         if (exit is not null)
+        {
             exit.IsVisible = _wizardStep == 5 || (!_tvStoreHandoff && !_installationCompleted);
+            // Keep the only available action on the installation result page
+            // disabled until the transfer/installation operation has finished.
+            exit.IsEnabled = _wizardStep != 5 || _installationFinished;
+        }
         if (next is not null)
         {
+            // Step 5 is a result-only page: the "Finish" action is never shown.
             next.IsVisible = _wizardStep < 5 && (!_tvStoreHandoff || _wizardStep == 4);
             next.Content = InstallerLocalization.T(_tvStoreHandoff
                 ? "Finalizar"
