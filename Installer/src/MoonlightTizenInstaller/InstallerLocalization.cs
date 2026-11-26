@@ -88,8 +88,9 @@ internal static class InstallerLocalization
         _localeIndex = index;
     }
 
-    public static string T(string value)
+    public static string T(string? value)
     {
+        if (value is null) return string.Empty;
         if (Translations.TryGetValue(value, out var direct))
             return direct[Math.Max(_localeIndex, 0)];
 
