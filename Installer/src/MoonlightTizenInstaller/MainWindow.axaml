@@ -167,7 +167,7 @@
                   <TextBlock Name="HostIpAddress" Text="Consultando dirección IP…"
                              FontSize="23" FontWeight="Bold" Foreground="#A7D3FF" />
                 </Border>
-                <TextBlock Text="5. Confirm the settings, then restart the TV to apply the changes by holding the power button for at least two seconds. Then click Retry here."
+                <TextBlock Text="5. Confirm the settings, then restart the TV by pressing and holding its power button for at least two seconds. This is required to apply the changes. Then click Retry here."
                            TextWrapping="Wrap" Foreground="#ACBAD0" />
                 <Button Name="RetryTelevisionDiscoveryButton"
                         HorizontalAlignment="Center" Margin="0,8,0,0"
