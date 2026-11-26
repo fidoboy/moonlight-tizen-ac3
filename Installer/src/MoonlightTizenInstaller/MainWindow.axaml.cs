@@ -938,24 +938,27 @@ public sealed partial class MainWindow : Window
     private void SetOperationStatus(string message)
     {
         var displayMessage = message;
-        var match = System.Text.RegularExpressions.Regex.Match(
-            message, @"(?<phase>Transfiriendo|Instalando).*?(?<percent>\d{1,3})\s*%",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant);
-        if (match.Success && int.TryParse(match.Groups["percent"].Value, out var percent))
+        var percentMatch = System.Text.RegularExpressions.Regex.Match(
+            message, @"(?<!\d)(?<percent>\d{1,3})\s*%",
+            System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        if (percentMatch.Success && int.TryParse(percentMatch.Groups["percent"].Value, out var percent))
         {
             percent = Math.Clamp(percent, 0, 100);
-            var overallProgress = match.Groups["phase"].Value.Equals("Instalando", StringComparison.OrdinalIgnoreCase)
-                ? 50 + percent / 2.0
-                : percent / 2.0;
+            var isInstallPhase = message.Contains("Instal", StringComparison.OrdinalIgnoreCase);
+            var isTransferPhase = message.Contains("Transfer", StringComparison.OrdinalIgnoreCase) ||
+                                  message.Contains("Transf", StringComparison.OrdinalIgnoreCase);
+            var overallProgress = isInstallPhase ? 50 + percent / 2.0
+                : isTransferPhase ? percent / 2.0 : percent;
             if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } progressBar)
             {
                 progressBar.IsIndeterminate = false;
-                progressBar.Value = overallProgress;
+                progressBar.Value = Math.Max(progressBar.Value, overallProgress);
             }
-            displayMessage = message[..match.Index] + message[(match.Index + match.Length)..];
-            displayMessage = System.Text.RegularExpressions.Regex.Replace(displayMessage, @"\s{2,}", " ").Trim();
         }
 
+        // The percentage belongs in the progress bar, not in the status copy.
+        displayMessage = System.Text.RegularExpressions.Regex.Replace(displayMessage, @"\s*\d{1,3}\s*%", "");
+        displayMessage = System.Text.RegularExpressions.Regex.Replace(displayMessage, @"\s{2,}", " ").Trim();
         if (this.FindControl<TextBlock>("InstallationOperationStatus") is { } status)
             status.Text = HideInternalProtocolNames(displayMessage);
     }
