@@ -25,6 +25,10 @@
     <Style Selector="Button.primary:pointerover">
       <Setter Property="Background" Value="#C1E1FF" />
       <Setter Property="BorderBrush" Value="#C1E1FF" />
+      <Setter Property="Foreground" Value="#F5F8FF" />
+    </Style>
+    <Style Selector="Button.primary:pointerover Path.retry-icon">
+      <Setter Property="Stroke" Value="#F5F8FF" />
     </Style>
     <Style Selector="Button:disabled">
       <Setter Property="Foreground" Value="#718096" />
