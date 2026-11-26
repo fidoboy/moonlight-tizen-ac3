@@ -145,10 +145,10 @@ public sealed partial class MainWindow : Window
         if (back is not null)
             back.IsVisible = _wizardStep > 1 && !_tvStoreHandoff && _wizardStep < 5;
         if (exit is not null)
-            exit.IsVisible = !_tvStoreHandoff && !_installationCompleted;
+            exit.IsVisible = _wizardStep == 5 || (!_tvStoreHandoff && !_installationCompleted);
         if (next is not null)
         {
-            next.IsVisible = !_tvStoreHandoff || _wizardStep == 4;
+            next.IsVisible = _wizardStep < 5 && (!_tvStoreHandoff || _wizardStep == 4);
             next.Content = InstallerLocalization.T(_tvStoreHandoff
                 ? "Finalizar"
                 : _wizardStep switch
