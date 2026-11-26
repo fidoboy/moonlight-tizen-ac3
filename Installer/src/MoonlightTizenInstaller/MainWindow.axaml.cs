@@ -13,7 +13,6 @@ public sealed partial class MainWindow : Window
     private readonly CertificateManager _certificates;
     private readonly TelevisionDiscoveryService _discovery;
     private readonly string _bundledWgtPath = Path.Combine(AppContext.BaseDirectory, "Moonlight.wgt");
-    private bool _bundledWgtAvailable;
     private string? _selectedDuid;
     private bool _discoveryInProgress;
 
@@ -22,16 +21,60 @@ public sealed partial class MainWindow : Window
         _certificates = certificates;
         _discovery = discovery;
         InitializeComponent();
-        _bundledWgtAvailable = File.Exists(_bundledWgtPath);
-        if (this.FindControl<TextBlock>("BundledWgtStatus") is { } packageStatus)
-            packageStatus.Text = _bundledWgtAvailable
-                ? $"Paquete incluido: Moonlight.wgt ({new FileInfo(_bundledWgtPath).Length / 1024:N0} KB)"
-                : "No se encuentra el paquete Moonlight.wgt incluido en esta distribución.";
-        RefreshCertificateStatus();
-        Opened += async (_, _) => await DiscoverTelevisionsAsync();
+        Opened += async (_, _) =>
+        {
+            if (!await EnsureBundledWgtAvailableAsync())
+                return;
+
+            RefreshCertificateStatus();
+            await DiscoverTelevisionsAsync();
+        };
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    private async Task<bool> EnsureBundledWgtAvailableAsync()
+    {
+        try
+        {
+            if (File.Exists(_bundledWgtPath) && new FileInfo(_bundledWgtPath).Length > 0)
+                return true;
+        }
+        catch
+        {
+            // Treat inaccessible or invalid package resources as a missing mandatory resource.
+        }
+
+        var message = new TextBlock
+        {
+            Text = "No se encuentra el paquete Moonlight.wgt necesario para ejecutar este instalador.\n\nLa distribución está incompleta o dañada. Descarga de nuevo el instalador.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Margin = new Avalonia.Thickness(20)
+        };
+        var closeButton = new Button
+        {
+            Content = "Aceptar",
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
+            MinWidth = 100,
+            Margin = new Avalonia.Thickness(20, 0, 20, 20)
+        };
+        var dialog = new Window
+        {
+            Title = "No se puede iniciar Moonlight Tizen Installer",
+            Width = 480,
+            SizeToContent = Avalonia.Controls.SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new StackPanel
+            {
+                Children = { message, closeButton }
+            }
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        await dialog.ShowDialog(this);
+        Close();
+        return false;
+    }
 
     private async void OnDiscoverTelevisionsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
         await DiscoverTelevisionsAsync();
@@ -159,7 +202,7 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<Button>("EnsureCertificateButton") is { } ensure)
             ensure.IsEnabled = enabled && !_discoveryInProgress;
         if (this.FindControl<Button>("SignWgtButton") is { } sign)
-            sign.IsEnabled = enabled && !_discoveryInProgress && _bundledWgtAvailable;
+            sign.IsEnabled = enabled && !_discoveryInProgress;
     }
 
     private string? GetSelectedDuid() => _selectedDuid;
@@ -242,11 +285,6 @@ public sealed partial class MainWindow : Window
 
         try
         {
-            if (!_bundledWgtAvailable || !File.Exists(_bundledWgtPath))
-                throw new FileNotFoundException(
-                    "La distribución no contiene el paquete Moonlight.wgt esperado.",
-                    _bundledWgtPath);
-
             var outputDialog = new SaveFileDialog
             {
                 Title = "Guardar WGT firmado",
@@ -281,7 +319,7 @@ public sealed partial class MainWindow : Window
         finally
         {
             if (this.FindControl<Button>("SignWgtButton") is { } sign)
-                sign.IsEnabled = _selectedDuid is not null && _bundledWgtAvailable;
+                sign.IsEnabled = _selectedDuid is not null;
         }
     }
 
