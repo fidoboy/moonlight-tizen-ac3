@@ -68,8 +68,10 @@ public sealed class StarFieldControl : OpenGlControlBase
                                -a_position.y * yProjection, 0.0, 1.0);
 
             float radialDistance = length(a_position.xy) * u_width / (2.0 * z);
+            // Keep stars visible on the central axis while gradually increasing
+            // their opacity toward the outer part of the projected field.
             float fade = smoothstep(0.015, 0.30, radialDistance);
-            v_alpha = fade;
+            v_alpha = mix(0.32, 1.0, fade);
             v_color = a_color;
 
             float radius = (1.0 - z / 1500.0) * a_size * 7.2;
@@ -120,7 +122,9 @@ public sealed class StarFieldControl : OpenGlControlBase
         for (var i = 0; i < StarCount; i++)
         {
             var angle = _random.NextDouble() * Math.PI * 2.0;
-            var radialPosition = 0.22 + 0.78 * Math.Sqrt(_random.NextDouble());
+            // sqrt(random) distributes stars uniformly across the full disk,
+            // including its center, without creating an empty inner ring.
+            var radialPosition = Math.Sqrt(_random.NextDouble());
             var offset = i * 7;
 
             data[offset] = (float)(Math.Cos(angle) * radialPosition);
