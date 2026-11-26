@@ -11,22 +11,11 @@
     </StackPanel>
     <ScrollViewer Grid.Row="1" Margin="0,24">
       <StackPanel Spacing="14">
-        <Border Name="CertificatePanel" IsVisible="False" Padding="20" CornerRadius="8" BorderThickness="1"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
-          <StackPanel Spacing="12">
-            <TextBlock Text="Certificados de firma" FontSize="19" />
-            <TextBlock Name="CertificateStatus" Text="Consultando perfiles…" TextWrapping="Wrap" />
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button Content="Recuperar certificados…" Click="OnImportCertificatesClick" />
-              <Button Content="Exportar certificados…" Click="OnExportCertificatesClick" />
-            </StackPanel>
-          </StackPanel>
-        </Border>
         <Border Padding="20" CornerRadius="8" BorderThickness="1"
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
           <StackPanel Spacing="12">
             <TextBlock Text="Conectar con el televisor" FontSize="19" />
-            <TextBlock Text="El instalador intenta primero enviar Moonlight a Apps2Samsung TV-Store, si está instalado y su servicio de recepción está disponible. Si no puede completar esa transferencia, continúa por SDB: obtiene automáticamente el DUID, prepara el certificado y realiza la instalación directa. Nunca se solicita introducir el DUID manualmente." TextWrapping="Wrap" />
+            <TextBlock Text="El instalador intenta primero enviar Moonlight a TV-Store, si está disponible. Si esa vía no puede completar la instalación, continúa por SDB y obtiene automáticamente el DUID. Nunca se solicita introducir el DUID manualmente." TextWrapping="Wrap" />
             <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
               <ProgressBar IsIndeterminate="True" Height="6" />
               <TextBlock Name="TelevisionSearchStatus" Text="Detectando televisores y comprobando primero la disponibilidad de TV-Store…" TextWrapping="Wrap" />
@@ -66,16 +55,14 @@
             <TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Opacity="0.8" />
             <StackPanel Name="TelevisionActionsPanel" Spacing="8" IsVisible="False">
               <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" IsEnabled="False" Click="OnEnsureCertificateClick" />
-              <Button Name="SignWgtButton" Content="Firmar paquete incluido…" HorizontalAlignment="Left" IsEnabled="False" Click="OnSignWgtClick" />
-              <Button Name="InstallWgtButton" Content="Instalar Moonlight mediante SDB" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick" />
+                <Button Name="GenerateCertificateButton" Content="Crear o renovar certificado con Samsung" HorizontalAlignment="Left" IsEnabled="False" Click="OnGenerateCertificateClick" />
+                <Button Name="InstallWgtButton" Content="Instalar Moonlight mediante SDB" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick" />
               </StackPanel>
               <TextBlock Text="Esta acción solo se habilita si la vía preferente de TV-Store no está disponible y se ha obtenido automáticamente un DUID válido. Si el relay de TV-Store está activo, se utiliza como transporte SDB; de lo contrario, se conecta al puerto SDB convencional." TextWrapping="Wrap" Opacity="0.7" />
               <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
             </StackPanel>
           </StackPanel>
         </Border>
-        <TextBlock Text="Los materiales CA de Samsung/Tizen no se distribuyen con el instalador. La emisión requiere que estén instalados desde una fuente autorizada." TextWrapping="Wrap" Opacity="0.7" />
       </StackPanel>
     </ScrollViewer>
     <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
