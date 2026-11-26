@@ -32,6 +32,23 @@ RUN chmod a+x web-cli_Tizen_Studio_6.1_ubuntu-64.bin
 RUN ./web-cli_Tizen_Studio_6.1_ubuntu-64.bin --accept-license /home/moonlight/tizen-studio
 ENV PATH=/home/moonlight/tizen-studio/tools/ide/bin:/home/moonlight/tizen-studio/tools:${PATH}
 
+# Install only the Samsung Certificate Extension. The Package Manager's default
+# extension repository provides this package; no TV SDK extension is required.
+RUN package-manager-cli install --accept-license --no-java-check "Samsung Certificate Extension" && \
+	CERT_MANAGER="/home/moonlight/tizen-studio/tools/certificate-manager/certificate-manager" && \
+	test -x "$CERT_MANAGER" && \
+	AUTHOR_CA="$(find /home/moonlight/tizen-studio -type f -name vd_tizen_dev_author_ca.cer -print -quit)" && \
+	PARTNER_CA="$(find /home/moonlight/tizen-studio -type f -name vd_tizen_dev_partner2.crt -print -quit)" && \
+	test -n "$AUTHOR_CA" && test -f "$AUTHOR_CA" && \
+	test -n "$PARTNER_CA" && test -f "$PARTNER_CA" && \
+	mkdir -p /home/moonlight/certificate-authorities && \
+	cp "$AUTHOR_CA" /home/moonlight/certificate-authorities/vd_tizen_dev_author_ca.cer && \
+	cp "$PARTNER_CA" /home/moonlight/certificate-authorities/vd_tizen_dev_partner2.crt && \
+	echo "Samsung Certificate Extension installed: $CERT_MANAGER" && \
+	echo "Author CA: $AUTHOR_CA" && \
+	echo "Partner distributor CA: $PARTNER_CA" && \
+	ls -l /home/moonlight/certificate-authorities
+
 FROM sdk AS base
 
 # Install Samsung Emscripten SDK and configure Java path for closure compiler
@@ -133,7 +150,7 @@ RUN cp moonlight-tizen/res/icon.png build/widget/
 # Inject Game Mode metadata into the Tizen config.xml file, which is required for building the ForceGM variant later
 ARG FORCE_GAME_MODE=false
 RUN if [ "$FORCE_GAME_MODE" = "true" ]; then \
-		sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' build/widget/config.xml && \
+		sed -i 's|<tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|<tizen:metadata key="http://samsung.com/tv/metadata/use.game.mode" value="true"/>\\n    <tizen:metadata key="http://samsung.com/tv/metadata/use.voiceguide"|' build/widget/config.xml && \
 		grep -q 'use.game.mode' build/widget/config.xml && \
 		echo "Game Mode metadata injected into config.xml (ForceGM variant)"; \
 	else \
