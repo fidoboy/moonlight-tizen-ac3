@@ -150,9 +150,9 @@
             <Border Background="#101A2D" BorderBrush="#3E94F5" BorderThickness="1"
                     CornerRadius="12" Padding="20">
               <StackPanel Spacing="12">
-                <TextBlock Text="Moonlight se ha enviado a TV-Store" FontSize="20" FontWeight="SemiBold" />
-                <TextBlock Name="TvStoreHandoffStatus" TextWrapping="Wrap" />
-                <TextBlock Text="Completa la instalación en el televisor pulsando «Aceptar» en el mensaje de confirmación."
+                <TextBlock Text="Completa la instalación en el televisor" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Name="TvStoreHandoffStatus"
+                           Text="Pulsa «Aceptar» en el mensaje de confirmación que aparece en el televisor."
                            TextWrapping="Wrap" Foreground="#ACBAD0" />
                 <StackPanel Orientation="Horizontal" Spacing="10">
                   <Button Name="FinishTvStoreHandoffButton" Content="Finalizar" Classes="primary" />
