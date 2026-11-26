@@ -1,11 +1,11 @@
 using Avalonia.Controls;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using MoonlightTizenInstaller.Core.Certificates;
 using MoonlightTizenInstaller.Core.Network;
 using MoonlightTizenInstaller.Core.Installation;
-using Apps2Samsung.Interfaces;
-using Apps2Samsung.Models;
 
 namespace MoonlightTizenInstaller;
 
@@ -16,9 +16,13 @@ public sealed partial class MainWindow : Window
     private readonly SdbInstallationService _sdbInstaller = new();
     private readonly TvStoreHandoffService _tvStoreInstaller = new();
     private readonly string _bundledWgtPath = Path.Combine(Path.GetTempPath(), $"MoonlightTizenInstaller-{Guid.NewGuid():N}.wgt");
+    private Bitmap? _brandBitmap;
     private string? _selectedDuid;
     private DiscoveredTelevision? _selectedTelevision;
     private bool _discoveryInProgress;
+    private bool _tvStoreHandoff;
+    private bool _installationCompleted;
+    private int _wizardStep = 1;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
     {
@@ -27,6 +31,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Closed += (_, _) =>
         {
+            _brandBitmap?.Dispose();
             try
             {
                 if (File.Exists(_bundledWgtPath))
@@ -42,18 +47,128 @@ public sealed partial class MainWindow : Window
             if (!await EnsureBundledWgtAvailableAsync())
                 return;
 
-            await DiscoverTelevisionsAsync();
+            SetWizardStep(1);
         };
     }
 
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
+        var logoUri = new Uri("avares://MoonlightTizenInstaller/Assets/moonlight-logo.png");
+        using (var logoStream = AssetLoader.Open(logoUri))
+            _brandBitmap = new Bitmap(logoStream);
+        if (this.FindControl<Image>("MoonlightBrandLogo") is { } logo)
+            logo.Source = _brandBitmap;
+        using (var iconStream = AssetLoader.Open(logoUri))
+            Icon = new WindowIcon(iconStream);
+
         if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
             finishButton.Click += OnFinishTvStoreHandoffClick;
         if (this.FindControl<Button>("ContinueWithSdbButton") is { } sdbFallbackButton)
             sdbFallbackButton.Click += OnContinueWithSdbClick;
+        if (this.FindControl<ComboBox>("TelevisionSelection") is { } selector)
+            selector.SelectionChanged += OnTelevisionSelectionChanged;
     }
+
+    private void SetWizardStep(int step)
+    {
+        _wizardStep = Math.Clamp(step, 1, 5);
+        foreach (var (number, name) in new[]
+        {
+            (1, "WelcomePage"), (2, "TelevisionPage"), (3, "ConnectionPage"),
+            (4, "CertificatePage"), (5, "InstallationPage")
+        })
+        {
+            if (this.FindControl<StackPanel>(name) is { } page)
+                page.IsVisible = number == _wizardStep;
+        }
+
+        for (var number = 1; number <= 5; number++)
+        {
+            var active = number <= _wizardStep;
+            if (this.FindControl<Border>($"StepIndicator{number}") is { } indicator)
+            {
+                indicator.Background = new Avalonia.Media.SolidColorBrush(
+                    Avalonia.Media.Color.Parse(active ? "#78B8FF" : "#14213A"));
+                indicator.BorderBrush = new Avalonia.Media.SolidColorBrush(
+                    Avalonia.Media.Color.Parse(active ? "#78B8FF" : "#40516D"));
+            }
+            if (this.FindControl<TextBlock>($"StepNumber{number}") is { } numeral)
+                numeral.Foreground = new Avalonia.Media.SolidColorBrush(
+                    Avalonia.Media.Color.Parse(active ? "#071224" : "#ACBAD0"));
+            if (this.FindControl<TextBlock>($"StepLabel{number}") is { } label)
+            {
+                label.Foreground = new Avalonia.Media.SolidColorBrush(
+                    Avalonia.Media.Color.Parse(number == _wizardStep ? "#F5F8FF" : "#ACBAD0"));
+                label.FontWeight = number == _wizardStep
+                    ? Avalonia.Media.FontWeight.SemiBold
+                    : Avalonia.Media.FontWeight.Normal;
+            }
+        }
+
+        var back = this.FindControl<Button>("WizardBackButton");
+        var next = this.FindControl<Button>("WizardNextButton");
+        var exit = this.FindControl<Button>("WizardExitButton");
+        if (back is not null)
+            back.IsVisible = _wizardStep > 1 && !_tvStoreHandoff && _wizardStep < 5;
+        if (exit is not null)
+            exit.IsVisible = !_tvStoreHandoff && !_installationCompleted;
+        if (next is not null)
+        {
+            next.IsVisible = !_tvStoreHandoff;
+            next.Content = _wizardStep switch
+            {
+                1 => "Comenzar",
+                2 => "Continuar",
+                3 => "Siguiente",
+                4 => "Ir a instalación",
+                _ => "Finalizar"
+            };
+            next.IsEnabled = _wizardStep switch
+            {
+                1 => true,
+                2 => _selectedTelevision is not null && TizenDuid.IsValid(_selectedDuid),
+                3 => TizenDuid.IsValid(_selectedDuid),
+                4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
+                _ => _installationCompleted
+            };
+        }
+    }
+
+    private async void OnWizardNextClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        switch (_wizardStep)
+        {
+            case 1:
+                SetWizardStep(2);
+                await DiscoverTelevisionsAsync();
+                break;
+            case 2:
+                if (TizenDuid.IsValid(_selectedDuid))
+                    SetWizardStep(3);
+                break;
+            case 3:
+                if (TizenDuid.IsValid(_selectedDuid))
+                    SetWizardStep(4);
+                break;
+            case 4:
+                if (TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!))
+                    SetWizardStep(5);
+                break;
+            case 5:
+                if (_installationCompleted)
+                    Close();
+                break;
+        }
+    }
+
+    private void OnWizardBackClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (_wizardStep > 1)
+            SetWizardStep(_wizardStep - 1);
+    }
+
+    private void OnWizardExitClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close();
 
     private async Task<bool> EnsureBundledWgtAvailableAsync()
     {
@@ -106,10 +221,7 @@ public sealed partial class MainWindow : Window
             SizeToContent = Avalonia.Controls.SizeToContent.Height,
             CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Children = { message, closeButton }
-            }
+            Content = new StackPanel { Children = { message, closeButton } }
         };
         closeButton.Click += (_, _) => dialog.Close();
         await dialog.ShowDialog(this);
@@ -117,8 +229,11 @@ public sealed partial class MainWindow : Window
         return false;
     }
 
-    private async void OnDiscoverTelevisionsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+    private async void OnDiscoverTelevisionsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        SetWizardStep(2);
         await DiscoverTelevisionsAsync();
+    }
 
     private async Task DiscoverTelevisionsAsync()
     {
@@ -128,6 +243,7 @@ public sealed partial class MainWindow : Window
         _discoveryInProgress = true;
         _selectedDuid = null;
         _selectedTelevision = null;
+        _tvStoreHandoff = false;
         SetTelevisionActionsEnabled(false);
         var searching = this.FindControl<StackPanel>("TelevisionSearchingPanel");
         var activation = this.FindControl<StackPanel>("TelevisionActivationPanel");
@@ -209,12 +325,14 @@ public sealed partial class MainWindow : Window
             hostIpDescription.Text = useRelay
                 ? "TV-Store ha anunciado un relay SDB activo. Introduce exactamente 127.0.0.1 en Host PC IP:"
                 : "Para la conexión SDB directa, introduce la dirección IPv4 de este ordenador en Host PC IP:";
+        SetWizardStep(2);
     }
 
     private async Task SelectTelevisionAsync(DiscoveredTelevision device)
     {
         _selectedTelevision = device;
         _selectedDuid = null;
+        _tvStoreHandoff = false;
 
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
         if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
@@ -247,10 +365,11 @@ public sealed partial class MainWindow : Window
                 progress.Report($"TV-Store no ha podido completar el envío ({ex.Message}). Se continuará mediante SDB.");
                 handoff = null;
             }
+
             if (handoff is not null)
             {
+                _tvStoreHandoff = true;
                 if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
-                if (this.FindControl<StackPanel>("TelevisionActionsPanel") is { } actionsPanel) actionsPanel.IsVisible = false;
                 if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel) tvStorePanel.IsVisible = true;
                 if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
                 {
@@ -260,14 +379,15 @@ public sealed partial class MainWindow : Window
                     tvStoreStatus.Text =
                         $"Moonlight.wgt se ha transferido y su SHA-256 se ha verificado ({handoff.Size:N0} bytes).\n\n" +
                         $"{launchMessage}\n\n" +
-                        "En la pantalla del televisor debe aparecer la solicitud de instalación de Moonlight. Selecciona «Instalar» y acepta la confirmación de TV-Store. " +
                         "El instalador no necesita realizar ninguna otra operación por esta vía. Si TV-Store no consigue completar la instalación (por ejemplo, porque no tiene un certificado configurado), vuelve a esta ventana y pulsa «Continuar mediante SDB».";
                 }
+                if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
+                    summary.Text = $"El paquete se ha transferido correctamente a TV-Store en {device.IpAddress}. Completa la confirmación en el televisor.";
+                SetWizardStep(3);
                 return;
             }
 
             await ContinueWithSdbInstallationAsync(device);
-
         }
         catch (OperationCanceledException)
         {
@@ -287,8 +407,8 @@ public sealed partial class MainWindow : Window
     {
         _selectedTelevision = device;
         _selectedDuid = null;
+        _tvStoreHandoff = false;
         if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
-        if (this.FindControl<StackPanel>("TelevisionActionsPanel") is { } actionsPanel) actionsPanel.IsVisible = true;
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
         if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
             searchStatus.Text = "TV-Store no se va a utilizar. Preparando la instalación directa mediante SDB…";
@@ -309,10 +429,14 @@ public sealed partial class MainWindow : Window
             if (TizenDuid.IsValid(withDuid.Duid))
             {
                 if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
+                var connectionMessage = withDuid.UsesTvStoreRelay
+                    ? $"Conexión SDB preparada mediante el relay de TV-Store ({withDuid.IpAddress}:{withDuid.SdbPort}). DUID detectado automáticamente: {withDuid.Duid}"
+                    : $"Conexión SDB directa preparada ({withDuid.IpAddress}:{withDuid.SdbPort}). DUID detectado automáticamente: {withDuid.Duid}";
+                if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
+                    summary.Text = connectionMessage;
                 if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-                    status.Text = withDuid.UsesTvStoreRelay
-                        ? $"DUID obtenido automáticamente mediante el relay SDB ({withDuid.IpAddress}:{withDuid.SdbPort}): {withDuid.Duid}"
-                        : $"DUID obtenido automáticamente mediante SDB directo ({withDuid.IpAddress}:{withDuid.SdbPort}): {withDuid.Duid}";
+                    status.Text = connectionMessage;
+                SetWizardStep(3);
             }
             else
             {
@@ -370,6 +494,9 @@ public sealed partial class MainWindow : Window
             status.Text = certificateReady
                 ? "El certificado Partner guardado en este equipo es válido y cubre este televisor."
                 : "No hay un certificado Partner válido para este televisor. Pulsa «Crear o renovar certificado con Samsung» para obtenerlo.";
+
+        if (_wizardStep == 4)
+            SetWizardStep(4);
     }
 
     private string? GetSelectedDuid() => _selectedDuid;
@@ -471,6 +598,14 @@ public sealed partial class MainWindow : Window
             }
 
             SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight (paquete {result.PackageId}) mediante {endpointDescription}.");
+            _installationCompleted = true;
+            if (this.FindControl<Button>("WizardNextButton") is { } finish)
+            {
+                finish.Content = "Finalizar";
+                finish.IsEnabled = true;
+            }
+            if (this.FindControl<Button>("WizardExitButton") is { } exit)
+                exit.IsVisible = false;
         }
         catch (OperationCanceledException)
         {
@@ -490,7 +625,7 @@ public sealed partial class MainWindow : Window
 
     private void SetOperationStatus(string message)
     {
-        if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } status)
+        if (this.FindControl<TextBlock>("InstallationOperationStatus") is { } status)
             status.Text = message;
     }
 }
