@@ -3,7 +3,7 @@
              x:Class="MoonlightTizenInstaller.App"
              RequestedThemeVariant="Dark">
   <Application.Styles>
-    <FluentTheme />
+    <FluentTheme CustomAccentColor="#78B8FF" />
     <Style Selector="Button">
       <Setter Property="Background" Value="#17243B" />
       <Setter Property="Foreground" Value="#F5F8FF" />
@@ -63,6 +63,9 @@
       <Setter Property="BorderBrush" Value="Transparent" />
     </Style>
     <Style Selector="ProgressBar">
+      <Setter Property="Foreground" Value="#78B8FF" />
+    </Style>
+    <Style Selector="RadioButton:checked">
       <Setter Property="Foreground" Value="#78B8FF" />
     </Style>
     <Style Selector="ComboBox">
