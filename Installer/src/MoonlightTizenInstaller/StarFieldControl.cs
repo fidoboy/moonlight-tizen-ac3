@@ -93,7 +93,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         """;
 
     private readonly Random _random = new();
-    private readonly float[] _vertices = CreateStarVertices();
+    private readonly float[] _vertices;
     private GlFunctions? _gl;
     private uint _program;
     private uint _vertexBuffer;
@@ -102,10 +102,12 @@ public sealed class StarFieldControl : OpenGlControlBase
     private int _heightUniform;
     private int _scaleUniform;
     private int _timeUniform;
+    private bool _isOpenGles;
     private long _startTimestamp;
 
     public StarFieldControl()
     {
+        _vertices = CreateStarVertices();
         IsHitTestVisible = false;
         ClipToBounds = true;
     }
@@ -350,6 +352,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void GetProgramInfoLogDelegate(uint program, int capacity, out int length, StringBuilder log);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate int GetLocationDelegate(uint program, [MarshalAs(UnmanagedType.LPStr)] string name);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void GenBuffersDelegate(int count, out uint buffer);
+        [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void GenVertexArraysDelegate(int count, out uint array);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void BindVertexArrayDelegate(uint array);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void DeleteVertexArraysDelegate(int count, ref uint array);
         [UnmanagedFunctionPointer(CallingConvention.Winapi)] private delegate void DeleteBuffersDelegate(int count, ref uint buffer);
@@ -381,6 +384,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         private readonly GetLocationDelegate _getUniformLocation;
         private readonly GetLocationDelegate _getAttribLocation;
         private readonly GenBuffersDelegate _genBuffers;
+        private readonly GenVertexArraysDelegate? _genVertexArrays;
         private readonly BindVertexArrayDelegate? _bindVertexArray;
         private readonly DeleteVertexArraysDelegate? _deleteVertexArrays;
         private readonly DeleteBuffersDelegate _deleteBuffers;
@@ -415,6 +419,7 @@ public sealed class StarFieldControl : OpenGlControlBase
             _getUniformLocation = Load<GetLocationDelegate>(gl, "glGetUniformLocation");
             _getAttribLocation = Load<GetLocationDelegate>(gl, "glGetAttribLocation");
             _genBuffers = Load<GenBuffersDelegate>(gl, "glGenBuffers");
+            _genVertexArrays = TryLoad<GenVertexArraysDelegate>(gl, "glGenVertexArrays");
             _bindVertexArray = TryLoad<BindVertexArrayDelegate>(gl, "glBindVertexArray");
             _deleteVertexArrays = TryLoad<DeleteVertexArraysDelegate>(gl, "glDeleteVertexArrays");
             _deleteBuffers = Load<DeleteBuffersDelegate>(gl, "glDeleteBuffers");
@@ -462,6 +467,7 @@ public sealed class StarFieldControl : OpenGlControlBase
         public int GetUniformLocation(uint program, string name) => _getUniformLocation(program, name);
         public int GetAttribLocation(uint program, string name) => _getAttribLocation(program, name);
         public void GenBuffers(int count, out uint buffer) => _genBuffers(count, out buffer);
+        public void GenVertexArrays(int count, out uint array)\n        {\n            if (_genVertexArrays is null)\n                throw new NotSupportedException("Vertex array objects are unavailable.");\n            _genVertexArrays(count, out array);\n        }
         public void BindVertexArray(uint array) => _bindVertexArray?.Invoke(array);
         public void DeleteVertexArrays(int count, ref uint array) => _deleteVertexArrays?.Invoke(count, ref array);
         public void DeleteBuffers(int count, ref uint buffer) => _deleteBuffers(count, ref buffer);
