@@ -177,7 +177,7 @@ internal static class InstallerLocalization
 
             var pattern = System.Text.RegularExpressions.Regex.Escape(pair.Key);
             pattern = System.Text.RegularExpressions.Regex.Replace(
-                pattern, @"\\\\\{(\\d+)\\\\\}", match => $@"(?<p{match.Groups[1].Value}>.*?)");
+                pattern, @"\\\{(\d+)\\\}", match => $@"(?<p{match.Groups[1].Value}>.*?)");
             var match = System.Text.RegularExpressions.Regex.Match(
                 value, $@"^{pattern}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
             if (!match.Success)
@@ -185,7 +185,7 @@ internal static class InstallerLocalization
 
             var translated = pair.Value[Math.Max(_localeIndex, 0)];
             foreach (System.Text.RegularExpressions.Match placeholder in
-                     System.Text.RegularExpressions.Regex.Matches(pair.Key, @"\\{(\\d+)\\}"))
+                     System.Text.RegularExpressions.Regex.Matches(pair.Key, @"\{(\d+)\}"))
                 translated = translated.Replace(
                     placeholder.Value, match.Groups[$"p{placeholder.Groups[1].Value}"].Value,
                     StringComparison.Ordinal);
