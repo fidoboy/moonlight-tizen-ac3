@@ -34,6 +34,8 @@ public sealed partial class MainWindow : Window
     private bool _tvStoreChosen;
     private bool _installationCompleted;
     private bool _installationFinished;
+    private string? _signedPackagePathForRetry;
+    private string? _signedPackageDirectoryForRetry;
     private bool _manualLanguageSelected;
     private int _wizardStep = 1;
 
@@ -887,7 +889,14 @@ public sealed partial class MainWindow : Window
     private async void OnInstallWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
         await InstallWgtAsync();
 
-    private async Task InstallWgtAsync()
+    private async void OnUninstallAndRetryClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (this.FindControl<Button>("UninstallAndRetryButton") is { } retryButton)
+            retryButton.IsEnabled = false;
+        await InstallWgtAsync(uninstallAndRetry: true);
+    }
+
+    private async Task InstallWgtAsync(bool uninstallAndRetry = false)
     {
         var television = _selectedTelevision;
         var duid = GetSelectedDuid();
@@ -923,20 +932,52 @@ public sealed partial class MainWindow : Window
             progressBar.IsVisible = true;
         }
         SetOperationStatus(InstallerLocalization.T("Preparando la instalación…"));
-        var temporaryDirectory = Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller", "install-" + Guid.NewGuid().ToString("N"));
-        var signedPackagePath = Path.Combine(temporaryDirectory, "Moonlight-signed.wgt");
+        var temporaryDirectory = uninstallAndRetry
+            ? _signedPackageDirectoryForRetry ?? throw new InvalidOperationException("The signed package prepared for retry is no longer available.")
+            : Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller", "install-" + Guid.NewGuid().ToString("N"));
+        var signedPackagePath = uninstallAndRetry
+            ? _signedPackagePathForRetry ?? throw new InvalidOperationException("The signed package prepared for retry is no longer available.")
+            : Path.Combine(temporaryDirectory, "Moonlight-signed.wgt");
+        var preserveSignedPackageForRetry = false;
 
         try
         {
-            Directory.CreateDirectory(temporaryDirectory);
             const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
-            SetOperationStatus(InstallerLocalization.T("Comprobando el perfil de firma Partner…"));
-            var profile = _certificates.GetUsableForTelevision(duid, level)
-                ?? throw new InvalidOperationException(InstallerLocalization.T("El certificado Partner no está disponible o ha caducado. Genera o renueva el certificado antes de instalar."));
+            if (!uninstallAndRetry)
+            {
+                Directory.CreateDirectory(temporaryDirectory);
+                SetOperationStatus(InstallerLocalization.T("Comprobando el perfil de firma Partner…"));
+                var profile = _certificates.GetUsableForTelevision(duid, level)
+                    ?? throw new InvalidOperationException(InstallerLocalization.T("El certificado Partner no está disponible o ha caducado."));
 
-            await _certificates.SignWgtAsync(
-                _bundledWgtPath, signedPackagePath, profile,
-                new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+                await _certificates.SignWgtAsync(
+                    _bundledWgtPath, signedPackagePath, profile,
+                    new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+            }
+            else
+            {
+                if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } uninstallBar)
+                    uninstallBar.IsIndeterminate = true;
+                SetOperationStatus(InstallerLocalization.T("Uninstalling Moonlight…"));
+                try
+                {
+                    await _sdbInstaller.UninstallAsync(
+                        television.IpAddress, television.SdbPort, signedPackagePath,
+                        new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+                }
+                catch (SdbEndpointUnavailableException) when (television.UsesTvStoreRelay)
+                {
+                    SetOperationStatus(InstallerLocalization.T("Se ha perdido la conexión con el televisor. Se intentará restablecerla…"));
+                    await _sdbInstaller.UninstallAsync(
+                        television.IpAddress, DiscoveredTelevision.DirectSdbPort, signedPackagePath,
+                        new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
+                }
+                if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } installBar)
+                {
+                    installBar.IsIndeterminate = false;
+                    installBar.Value = 0;
+                }
+            }
 
             var installProgress = new Progress<string>(message =>
                 Dispatcher.UIThread.Post(() => SetOperationStatus(message)));
@@ -972,8 +1013,22 @@ public sealed partial class MainWindow : Window
                 errorMessage.Contains("author cert", StringComparison.OrdinalIgnoreCase) ||
                 errorMessage.Contains("author-certificate", StringComparison.OrdinalIgnoreCase))
             {
+                preserveSignedPackageForRetry = true;
+                _signedPackagePathForRetry = signedPackagePath;
+                _signedPackageDirectoryForRetry = temporaryDirectory;
                 ShowInstallationResult(false,
-                    InstallerLocalization.T("Tizen ha rechazado la instalación porque el certificado de autor no coincide con el de la versión de Moonlight que ya está instalada. Desinstala primero Moonlight desde el televisor y vuelve a ejecutar este instalador. No generes otro certificado: eso no resolverá esta incompatibilidad."));
+                    InstallerLocalization.T("Tizen rejected the installation because the author certificate does not match the certificate used by the installed version of Moonlight. The installed version must be removed before this signed package can be installed."));
+                if (this.FindControl<TextBlock>("InstallationRetryInstructions") is { } retryInstructions)
+                {
+                    retryInstructions.Text = InstallerLocalization.T("If you want to uninstall the current version and try again, click “Uninstall & retry”.");
+                    retryInstructions.IsVisible = true;
+                }
+                if (this.FindControl<Button>("UninstallAndRetryButton") is { } retryButton)
+                {
+                    retryButton.Content = InstallerLocalization.T("Uninstall & retry");
+                    retryButton.IsEnabled = true;
+                    retryButton.IsVisible = true;
+                }
             }
             else
             {
@@ -982,8 +1037,13 @@ public sealed partial class MainWindow : Window
         }
         finally
         {
-            try { if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true); }
-            catch { /* Best-effort cleanup of the temporary signed WGT. */ }
+            if (!preserveSignedPackageForRetry)
+            {
+                try { if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true); }
+                catch { /* Best-effort cleanup of the temporary signed WGT. */ }
+                _signedPackagePathForRetry = null;
+                _signedPackageDirectoryForRetry = null;
+            }
             _installationFinished = true;
             if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } finalProgressBar)
                 finalProgressBar.IsVisible = false;
@@ -1015,6 +1075,13 @@ public sealed partial class MainWindow : Window
             title.Text = InstallerLocalization.T(success ? "Instalación completada" : "No se ha podido instalar Moonlight");
         if (this.FindControl<TextBlock>("InstallationResultMessage") is { } resultMessage)
             resultMessage.Text = message;
+        if (this.FindControl<TextBlock>("InstallationRetryInstructions") is { } retryInstructions)
+            retryInstructions.IsVisible = false;
+        if (this.FindControl<Button>("UninstallAndRetryButton") is { } retryButton)
+        {
+            retryButton.IsVisible = false;
+            retryButton.IsEnabled = true;
+        }
     }
 
     private static string HideInternalProtocolNames(string message) =>
