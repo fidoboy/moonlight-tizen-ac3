@@ -246,20 +246,20 @@ public sealed class StarFieldControl : OpenGlControlBase
         {
             return (VertexShaderDesktopSource.Replace("#version 120", "#version 300 es")
                         .Replace("attribute ", "in ").Replace("varying ", "out ")
-                        .Replace("        #version 300 es", "        #version 300 es\\n        precision highp float;"),
+                        .Replace("        #version 300 es", "        #version 300 es\n        precision highp float;"),
                     FragmentShaderDesktopSource.Replace("#version 120", "#version 300 es")
                         .Replace("varying ", "in ")
-                        .Replace("        #version 300 es", "        #version 300 es\\n        precision mediump float;")
-                        .Replace("void main()", "out vec4 fragmentColor;\\n        void main()")
+                        .Replace("        #version 300 es", "        #version 300 es\n        precision mediump float;")
+                        .Replace("void main()", "out vec4 fragmentColor;\n        void main()")
                         .Replace("gl_FragColor", "fragmentColor"));
         }
 
         if (version.Type == GlProfileType.OpenGLES)
         {
             return (VertexShaderDesktopSource.Replace("#version 120", "#version 100")
-                        .Replace("        #version 100", "        #version 100\\n        precision highp float;"),
+                        .Replace("        #version 100", "        #version 100\n        precision highp float;"),
                     FragmentShaderDesktopSource.Replace("#version 120", "#version 100")
-                        .Replace("        #version 100", "        #version 100\\n        precision mediump float;"));
+                        .Replace("        #version 100", "        #version 100\n        precision mediump float;"));
         }
 
         if (version.Major >= 3 && !version.IsCompatibilityProfile)
@@ -268,7 +268,7 @@ public sealed class StarFieldControl : OpenGlControlBase
                         .Replace("attribute ", "in ").Replace("varying ", "out "),
                     FragmentShaderDesktopSource.Replace("#version 120", "#version 150")
                         .Replace("varying ", "in ")
-                        .Replace("void main()", "out vec4 fragmentColor;\\n        void main()")
+                        .Replace("void main()", "out vec4 fragmentColor;\n        void main()")
                         .Replace("gl_FragColor", "fragmentColor"));
         }
 
