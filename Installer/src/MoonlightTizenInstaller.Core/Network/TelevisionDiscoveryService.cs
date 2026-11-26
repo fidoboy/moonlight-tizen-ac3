@@ -17,9 +17,9 @@ public sealed record DiscoveredTelevision(string IpAddress, string? Duid, string
 }
 
 /// <summary>
-/// Discovers Samsung TVs on the directly connected IPv4 LANs and reads their DUID over SDB.
-/// Only hosts with the Tizen developer port open are candidates: a TV without Developer Mode
-/// cannot expose its DUID over SDB and cannot be used by the certificate/signing workflow.
+/// Discovers Samsung TVs on the directly connected IPv4 LANs through the Samsung TV REST API.
+/// DUID retrieval is optional and is attempted only when the SDB developer port is available.
+/// This allows the TV-Store installation hand-off to work without Developer Mode.
 /// </summary>
 public sealed class TelevisionDiscoveryService
 {
