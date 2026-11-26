@@ -1,73 +1,25 @@
-<Window xmlns="https://github.com/avaloniaui"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        x:Class="MoonlightTizenInstaller.MainWindow"
-        Width="760" Height="680"
-        MinWidth="640" MinHeight="560"
-        Title="Moonlight Tizen Installer">
-  <Grid RowDefinitions="Auto,*,Auto" Margin="28">
-    <StackPanel Spacing="6">
-      <TextBlock Text="Moonlight para Samsung TV" FontSize="25" FontWeight="SemiBold" />
-      <TextBlock Text="Instalador guiado" Opacity="0.7" />
-    </StackPanel>
-    <ScrollViewer Grid.Row="1" Margin="0,24">
-      <StackPanel Spacing="14">
-        <Border Padding="20" CornerRadius="8" BorderThickness="1"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
-          <StackPanel Spacing="12">
-            <TextBlock Text="Conectar con el televisor" FontSize="19" />
-            <TextBlock Text="El instalador intenta primero enviar Moonlight a TV-Store, si está disponible. Si esa vía no puede completar la instalación, continúa por SDB y obtiene automáticamente el DUID. Nunca se solicita introducir el DUID manualmente." TextWrapping="Wrap" />
-            <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
-              <ProgressBar IsIndeterminate="True" Height="6" />
-              <TextBlock Name="TelevisionSearchStatus" Text="Detectando televisores y comprobando primero la disponibilidad de TV-Store…" TextWrapping="Wrap" />
-            </StackPanel>
-            <StackPanel Name="TvStoreHandoffPanel" Spacing="12" IsVisible="False">
-              <TextBlock Text="Paquete entregado a TV-Store" FontSize="18" FontWeight="SemiBold" />
-              <TextBlock Name="TvStoreHandoffStatus" TextWrapping="Wrap" />
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Name="FinishTvStoreHandoffButton" Content="Finalizar" HorizontalAlignment="Left" />
-                <Button Name="ContinueWithSdbButton" Content="Continuar mediante SDB" HorizontalAlignment="Left" />
-              </StackPanel>
-            </StackPanel>
-            <StackPanel Name="TelevisionActivationPanel" Spacing="10" IsVisible="False">
-              <TextBlock Text="Activa Developer Mode para obtener el DUID" FontSize="16" FontWeight="SemiBold" />
-              <TextBlock Text="Esta es la vía alternativa de instalación directa. El DUID es obligatorio para preparar el certificado y continuar por SDB. El instalador nunca te pedirá que lo escribas manualmente. Comprueba que el televisor está encendido y conectado a la misma red local y sigue estos pasos para activar Developer Mode:" TextWrapping="Wrap" />
-              <TextBlock Text="1. Enciende el televisor y abre la sección Apps." TextWrapping="Wrap" />
-              <TextBlock Text="2. Con el mando a distancia, introduce la secuencia 12345 para abrir el menú de Developer Mode." TextWrapping="Wrap" />
-              <TextBlock Text="3. Activa Developer Mode (ON)." TextWrapping="Wrap" />
-              <TextBlock Name="DeveloperModeHostIpDescription" Text="4. En el campo Host PC IP, introduce exactamente esta dirección IP:" TextWrapping="Wrap" />
-              <Border Padding="12" CornerRadius="6" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
-                <TextBlock Name="HostIpAddress" Text="Consultando dirección IP…" FontSize="20" FontWeight="SemiBold" />
-              </Border>
-              <TextBlock Text="5. Confirma la configuración y reinicia el televisor si lo solicita. Comprueba que el ordenador y la TV están conectados a la misma red local." TextWrapping="Wrap" />
-              <TextBlock Text="Cuando hayas terminado, pulsa Reintentar. Se repetirá la detección; primero se comprobará TV-Store y, si no puede utilizarse, se intentará obtener automáticamente el DUID por el relay SDB o por el puerto convencional." TextWrapping="Wrap" Opacity="0.8" />
-              <Button Name="RetryTelevisionDiscoveryButton" Content="Reintentar" HorizontalAlignment="Left" Click="OnDiscoverTelevisionsClick" />
-            </StackPanel>
-            <StackPanel Name="TelevisionSelectionPanel" Spacing="8" IsVisible="False">
-              <TextBlock Name="TelevisionSelectionPrompt" Text="Se han detectado varios televisores. Selecciona el que quieras utilizar:" TextWrapping="Wrap" />
-              <ComboBox Name="TelevisionSelection" SelectionChanged="OnTelevisionSelectionChanged">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock Text="{Binding DisplayName}" />
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-            </StackPanel>
-            <TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Opacity="0.8" />
-            <StackPanel Name="TelevisionActionsPanel" Spacing="8" IsVisible="False">
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button Name="GenerateCertificateButton" Content="Crear o renovar certificado con Samsung" HorizontalAlignment="Left" IsEnabled="False" Click="OnGenerateCertificateClick" />
-                <Button Name="InstallWgtButton" Content="Instalar Moonlight mediante SDB" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick" />
-              </StackPanel>
-              <TextBlock Text="Esta acción solo se habilita si la vía preferente de TV-Store no está disponible y se ha obtenido automáticamente un DUID válido. Si el relay de TV-Store está activo, se utiliza como transporte SDB; de lo contrario, se conecta al puerto SDB convencional." TextWrapping="Wrap" Opacity="0.7" />
-              <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
-            </StackPanel>
-          </StackPanel>
-        </Border>
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="MoonlightTizenInstaller.MainWindow" Width="820" Height="680" MinWidth="680" MinHeight="560" Background="#080D19" Foreground="#F5F8FF" Title="Moonlight Tizen Installer">
+  <Grid>
+    <Image Source="avares://MoonlightTizenInstaller/Assets/moonlight-logo.png" Width="660" Height="660" Stretch="Uniform" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="-330,0,0,0" Opacity="0.075" IsHitTestVisible="False"/>
+    <Grid RowDefinitions="Auto,*,Auto" Margin="34,26,34,26">
+      <StackPanel Spacing="22">
+        <Grid ColumnDefinitions="Auto,*"><Image Source="avares://MoonlightTizenInstaller/Assets/moonlight-logo.png" Width="38" Height="38" Stretch="Uniform"/><StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="12,0,0,0" Spacing="1"><TextBlock Text="MOONLIGHT TIZEN" FontSize="17" FontWeight="Bold"/><TextBlock Text="Instalador para Samsung TV" FontSize="11" Foreground="#ACBAD0"/></StackPanel></Grid>
+        <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="10">
+          <StackPanel Grid.Column="0" Spacing="6"><Border Name="Step1Circle" Background="#78B8FF" CornerRadius="12" Width="24" Height="24" HorizontalAlignment="Left"><TextBlock Text="1" Foreground="#080D19" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Name="Step1Label" Text="Inicio" FontSize="11" Foreground="#F5F8FF"/></StackPanel>
+          <StackPanel Grid.Column="1" Spacing="6"><Border Name="Step2Circle" Background="#26344B" CornerRadius="12" Width="24" Height="24" HorizontalAlignment="Left"><TextBlock Text="2" Foreground="#ACBAD0" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Name="Step2Label" Text="Televisor" FontSize="11" Foreground="#718099"/></StackPanel>
+          <StackPanel Grid.Column="2" Spacing="6"><Border Name="Step3Circle" Background="#26344B" CornerRadius="12" Width="24" Height="24" HorizontalAlignment="Left"><TextBlock Text="3" Foreground="#ACBAD0" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Name="Step3Label" Text="Conexión" FontSize="11" Foreground="#718099"/></StackPanel>
+          <StackPanel Grid.Column="3" Spacing="6"><Border Name="Step4Circle" Background="#26344B" CornerRadius="12" Width="24" Height="24" HorizontalAlignment="Left"><TextBlock Text="4" Foreground="#ACBAD0" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Name="Step4Label" Text="Certificado" FontSize="11" Foreground="#718099"/></StackPanel>
+          <StackPanel Grid.Column="4" Spacing="6"><Border Name="Step5Circle" Background="#26344B" CornerRadius="12" Width="24" Height="24" HorizontalAlignment="Left"><TextBlock Text="5" Foreground="#ACBAD0" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border><TextBlock Name="Step5Label" Text="Instalación" FontSize="11" Foreground="#718099"/></StackPanel>
+        </Grid>
       </StackPanel>
-    </ScrollViewer>
-    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8">
-      <Button Content="Salir" IsCancel="True" />
-      <Button Content="Siguiente" IsDefault="True" IsEnabled="False" />
-    </StackPanel>
+      <Grid Grid.Row="1" Margin="0,30,0,24">
+        <Border Name="Step1Page" IsVisible="True" Background="#101A2D" BorderBrush="#263650" BorderThickness="1" CornerRadius="18" Padding="30"><StackPanel VerticalAlignment="Center" Spacing="16"><TextBlock Text="Moonlight en tu televisor" FontSize="30" FontWeight="Bold"/><TextBlock Text="Instala Moonlight en tu Samsung TV en unos sencillos pasos." FontSize="16" Foreground="#ACBAD0" TextWrapping="Wrap"/><TextBlock Text="Buscaremos tu televisor y elegiremos automáticamente la vía de instalación disponible." FontSize="14" TextWrapping="Wrap"/></StackPanel></Border>
+        <Border Name="Step2Page" IsVisible="False" Background="#101A2D" BorderBrush="#263650" BorderThickness="1" CornerRadius="18" Padding="26"><StackPanel Spacing="16"><TextBlock Text="Buscando tu televisor" FontSize="24" FontWeight="Bold"/><StackPanel Name="TelevisionSearchingPanel" Spacing="10" IsVisible="True"><ProgressBar IsIndeterminate="True" Height="5"/><TextBlock Name="TelevisionSearchStatus" Text="Detectando televisores Samsung…" TextWrapping="Wrap"/></StackPanel><StackPanel Name="TelevisionSelectionPanel" Spacing="8" IsVisible="False"><TextBlock Name="TelevisionSelectionPrompt" Text="Selecciona el televisor:" TextWrapping="Wrap"/><ComboBox Name="TelevisionSelection" SelectionChanged="OnTelevisionSelectionChanged"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayName}"/></DataTemplate></ComboBox.ItemTemplate></ComboBox></StackPanel><TextBlock Name="TelevisionDiscoveryStatus" TextWrapping="Wrap" Foreground="#ACBAD0"/></StackPanel></Border>
+        <Border Name="Step3Page" IsVisible="False" Background="#101A2D" BorderBrush="#263650" BorderThickness="1" CornerRadius="18" Padding="26"><StackPanel Spacing="14"><StackPanel Name="TvStoreHandoffPanel" Spacing="12" IsVisible="False"><TextBlock Text="Confirma la instalación en la TV" FontSize="24" FontWeight="Bold"/><TextBlock Name="TvStoreHandoffStatus" TextWrapping="Wrap"/><StackPanel Orientation="Horizontal" Spacing="8"><Button Name="FinishTvStoreHandoffButton" Content="Finalizar" IsVisible="False"/><Button Name="ContinueWithSdbButton" Content="Usar instalación alternativa"/></StackPanel></StackPanel><StackPanel Name="TelevisionActivationPanel" Spacing="12" IsVisible="False"><TextBlock Text="Activa Developer Mode" FontSize="24" FontWeight="Bold"/><TextBlock Text="En la TV, abre Apps e introduce 12345 con el mando. Activa Developer Mode y configura Host PC IP con esta dirección:" TextWrapping="Wrap"/><Border Background="#14213A" BorderBrush="#344765" BorderThickness="1" CornerRadius="10" Padding="14"><TextBlock Name="HostIpAddress" Text="Consultando IP…" FontSize="24" FontWeight="Bold" Foreground="#78B8FF"/></Border><TextBlock Name="DeveloperModeHostIpDescription" TextWrapping="Wrap" Foreground="#ACBAD0"/><TextBlock Text="Guarda los cambios y reinicia la TV. Después, pulsa Siguiente para volver a intentarlo." TextWrapping="Wrap"/><Button Name="RetryTelevisionDiscoveryButton" Content="Reintentar detección" HorizontalAlignment="Left" Click="OnDiscoverTelevisionsClick"/></StackPanel></StackPanel></Border>
+        <Border Name="Step4Page" IsVisible="False" Background="#101A2D" BorderBrush="#263650" BorderThickness="1" CornerRadius="18" Padding="26"><StackPanel Spacing="16"><TextBlock Text="Certificado Samsung" FontSize="24" FontWeight="Bold"/><TextBlock Text="Se necesita un certificado Partner para instalar mediante SDB. Si ya existe uno válido, se utilizará automáticamente." TextWrapping="Wrap" Foreground="#ACBAD0"/><Button Name="GenerateCertificateButton" Content="Crear o renovar certificado con Samsung" HorizontalAlignment="Left" IsEnabled="False" Click="OnGenerateCertificateClick"/><TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap"/></StackPanel></Border>
+        <Border Name="Step5Page" IsVisible="False" Background="#101A2D" BorderBrush="#263650" BorderThickness="1" CornerRadius="18" Padding="26"><StackPanel Spacing="16"><TextBlock Text="Instalar Moonlight" FontSize="24" FontWeight="Bold"/><TextBlock Text="El paquete se firmará y se enviará al televisor mediante SDB." TextWrapping="Wrap" Foreground="#ACBAD0"/><Button Name="InstallWgtButton" Content="Instalar Moonlight" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick"/><TextBlock Name="InstallationStatus" TextWrapping="Wrap"/></StackPanel></Border>
+      </Grid>
+      <Grid Grid.Row="2" ColumnDefinitions="*,Auto"><Button Content="Salir" IsCancel="True" HorizontalAlignment="Left" Background="#14213A" BorderBrush="#344765"/><Button Name="NextButton" Grid.Column="1" Content="Siguiente" IsDefault="True" MinWidth="132" Padding="22,11" Background="#78B8FF" Foreground="#080D19" FontWeight="Bold" Click="OnNextClick"/></Grid>
+    </Grid>
   </Grid>
 </Window>
