@@ -7,52 +7,29 @@ description: "Primeros pasos con Moonlight Tizen y hosts compatibles con GameStr
 
 # Guía de inicio rápido
 
-Esta guía explica el camino más corto desde la instalación hasta tener una transmisión funcionando en un televisor Samsung Smart TV.
+Sigue estos pasos para instalar Moonlight y empezar a transmitir a tu Samsung Smart TV.
 
 ## 1. Comprueba la configuración
 
-Necesitarás:
+Necesitas un Samsung Smart TV con Tizen 5.5 o posterior, un PC con un host compatible con GameStream, como Sunshine, y una conexión de red estable entre ambos. Se requiere una GPU compatible con codificación por hardware.
 
-- Un Samsung Smart TV con Tizen 5.5 o posterior.
-- Un PC con Sunshine u otro host compatible con GameStream.
-- Una GPU del host compatible con codificación por hardware.
-- Una conexión de red estable entre el televisor y el PC. Para empezar, se recomienda Ethernet en el host y una conexión Wi-Fi de 5 GHz fiable o Ethernet en el televisor.
-- Un mando compatible si quieres jugar con un controlador.
+## 2. Instala Moonlight
 
-Consulta los [requisitos previos del README](../#compatibility) para obtener más información.
+**Recomendado: utiliza el [instalador de escritorio de Moonlight](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest).** Descarga el instalador para tu ordenador (Windows, Linux o macOS) y ejecútalo. Incluye la aplicación de Tizen y la transfiere al televisor. Mantén el ordenador y el televisor en la misma red local.
 
-## 2. Instala el cliente
+**Métodos alternativos:** instala la aplicación mediante [Apps2Samsung](https://apps2samsung.com/) o utiliza Tizen Studio. Consulta la [Guía de instalación](Installation-Guide-es.html) para más detalles.
 
-**Método recomendado: instalarlo desde el sitio oficial de [Apps2Samsung](https://apps2samsung.com/).** Descarga y ejecuta Apps2Samsung en el ordenador, selecciona el televisor, busca **Moonlight** en su catálogo de aplicaciones y elige la variante `fidoboy · Enhanced · Dolby`. Es la opción más sencilla porque Apps2Samsung prepara y firma el paquete por ti.
+## 3. Conéctate al host
 
-**Alternativa: instalación manual del WGT.** Descarga `Moonlight.wgt` desde la [última versión estable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) e instálalo con uno de estos métodos:
+1. Instala e inicia en el PC un host compatible con GameStream, como [Sunshine](https://app.lizardbyte.dev/Sunshine/) o [Vibeshine](https://github.com/Nonary/vibeshine/releases).
+2. Abre Moonlight en el televisor y selecciona tu PC cuando aparezca.
+3. Introduce el PIN que muestra Moonlight en la interfaz de emparejamiento del host en el PC.
+4. Selecciona un juego o el escritorio para iniciar la transmisión.
 
-- **Apps2Samsung:** selecciona **Custom WGT / TPK** y elige el archivo descargado.
-- **Tizen Studio:** conecta el televisor con el modo desarrollador activado e instala el paquete con las herramientas de despliegue de Tizen y un perfil de certificados aceptado por el televisor. Consulta la [Guía de instalación](Installation-Guide-es.html) para más detalles.
+## 4. Audio Dolby (opcional)
 
-## 3. Configura el host y empareja
-
-1. Instala e inicia en el PC cualquier servidor anfitrión compatible con GameStream. Algunos ejemplos son [Sunshine](https://app.lizardbyte.dev/Sunshine/), [Vibeshine](https://github.com/Nonary/vibeshine/releases), [Apollo](https://github.com/ClassicOldSong/Apollo/releases) y [Punktfunk](https://docs.punktfunk.unom.io/docs/install). También pueden funcionar otros programas anfitriones compatibles.
-2. Asegúrate de que el PC y el televisor puedan comunicarse en la misma red y que el cortafuegos del host permita las conexiones de transmisión.
-3. Inicia Moonlight en el televisor y selecciona el host cuando aparezca.
-4. Moonlight mostrará un PIN. Abre la interfaz web del servidor anfitrión en el PC, introduce el PIN en la sección de emparejamiento y confirma.
-5. Selecciona un juego o el escritorio para iniciar la transmisión.
-
-En una instalación nueva, empieza con valores conservadores de resolución, frecuencia de imagen y tasa de bits. Auméntalos cuando hayas confirmado que la transmisión es estable.
-
-## 4. Activa la salida óptica Dolby (opcional)
-
-El passthrough Dolby está admitido oficialmente en [Vibeshine 2.0.3 o superior](https://github.com/Nonary/vibeshine/releases/tag/2.0.3). **Recomendado: utiliza Vibeshine como host de transmisión para disfrutar del audio Dolby.**
-
-**Alternativa: compilación experimental de Sunshine.** El passthrough Dolby también está disponible en la [rama experimental de Sunshine mantenida para este proyecto](https://github.com/fidoboy/Sunshine/tree/pr/dolby-ac3-eac3), que todavía está pendiente de revisión en el proyecto original. Descarga la versión de Windows [x64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-AMD64.zip) o [ARM64](https://nightly.link/fidoboy/Sunshine/actions/runs/38719776826/build-Windows-ARM64.zip).
-
-1. Conecta la salida óptica del televisor al receptor o sistema de sonido.
-2. En los ajustes de sonido del televisor, elige un modo de salida que transmita un flujo Dolby compatible en lugar de forzar PCM estéreo. Los nombres exactos varían según el modelo.
-3. En Settings de Moonlight, activa **Enable Dolby Digital** y selecciona estéreo o 5.1.
-4. Inicia una transmisión y abre la superposición de rendimiento con **Ctrl+Alt+Shift+S**. Comprueba si la línea de audio activa indica OPUS, AC-3 o E-AC-3 y la distribución de canales esperada.
-
-Si el host solo ofrece OPUS, la transmisión seguirá usando OPUS. Activar un interruptor en el cliente no hace que un host que solo ofrece OPUS envíe audio Dolby.
+Para utilizar passthrough Dolby, usa [Vibeshine 2.0.3 o superior](https://github.com/Nonary/vibeshine/releases/tag/2.0.3) y activa **Enable Dolby Digital** en los ajustes de audio de Moonlight. Consulta el [Resumen de funciones](Features-Overview-es.html) para más detalles.
 
 ## 5. Ajusta la transmisión
 
-Cuando funcione la primera transmisión, ajusta la resolución, la frecuencia de imagen, la tasa de bits, el códec de vídeo y el audio según las capacidades del televisor y de la red. Consulta el [Resumen de funciones](Features-Overview-es.html) y las [Preguntas frecuentes](../Frequently-Asked-Questions.html) para más detalles.
+Cuando la transmisión funcione, ajusta la resolución, la frecuencia de imagen, la tasa de bits, el códec de vídeo y el audio según tu televisor y tu red. Consulta las [Preguntas frecuentes](../Frequently-Asked-Questions.html) si necesitas ayuda.
