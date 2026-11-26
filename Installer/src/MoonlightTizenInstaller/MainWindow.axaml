@@ -176,7 +176,7 @@
                     <Path Data="M 20,11 A 8,8 0 1 0 21,13 M 20,5 L 20,11 L 14,11"
                           Width="16" Height="16" Stretch="Uniform"
                           Stroke="#F5F8FF" StrokeThickness="1.8"
-                          StrokeLineCap="Round" StrokeLineJoin="Round" />
+                          StrokeLineCap="Round" />
                     <TextBlock Text="Retry" VerticalAlignment="Center" />
                   </StackPanel>
                 </Button>
