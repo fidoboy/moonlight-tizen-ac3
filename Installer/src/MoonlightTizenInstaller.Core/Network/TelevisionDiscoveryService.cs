@@ -266,7 +266,12 @@ public sealed class TelevisionDiscoveryService
                 return television with { Duid = duid, SdbPort = port };
         }
 
-        return television with { Duid = null };
+        return television with
+        {
+            Duid = null,
+            SdbPort = preferRelay && relayPort is { } activeRelay ? activeRelay : television.SdbPort,
+            TvStoreRelayAvailable = relayReachable
+        };
     }
 
     private async Task<string?> TryReadDuidAsync(IPAddress address, int port, CancellationToken cancellationToken)
