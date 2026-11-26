@@ -26,23 +26,23 @@
                 BorderBrush="{DynamicResource SystemControlForegroundBaseLowBrush}">
           <StackPanel Spacing="12">
             <TextBlock Text="Conectar con el televisor" FontSize="19" />
-            <TextBlock Text="Los televisores Samsung se detectan por su API de red. Enviar Moonlight a Apps2Samsung TV-Store no requiere Developer Mode ni SDB. La conexión de desarrollo solo es necesaria para obtener el DUID, gestionar certificados y firmar localmente." TextWrapping="Wrap" />
+            <TextBlock Text="Los televisores Samsung se detectan por su API de red, pero para continuar es obligatorio obtener automáticamente el DUID mediante SDB. El instalador usa el puerto 26101 de forma convencional y, si confirma que el relay de Apps2Samsung TV-Store está activo, utiliza el puerto anunciado por ese relay. TV-Store es opcional." TextWrapping="Wrap" />
             <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
               <ProgressBar IsIndeterminate="True" Height="6" />
-              <TextBlock Name="TelevisionSearchStatus" Text="Buscando televisores y comprobando la conexión SDB…" TextWrapping="Wrap" />
+              <TextBlock Name="TelevisionSearchStatus" Text="Buscando televisores y obteniendo automáticamente el DUID mediante SDB…" TextWrapping="Wrap" />
             </StackPanel>
             <StackPanel Name="TelevisionActivationPanel" Spacing="10" IsVisible="False">
-              <TextBlock Text="Comprueba la conexión con el televisor" FontSize="16" FontWeight="SemiBold" />
-              <TextBlock Text="La instalación mediante TV-Store no necesita Developer Mode. Comprueba primero que el televisor está encendido y conectado a la misma red local. Si quieres gestionar certificados o firmar el paquete localmente, activa Developer Mode siguiendo estos pasos:" TextWrapping="Wrap" />
+              <TextBlock Text="Activa Developer Mode para obtener el DUID" FontSize="16" FontWeight="SemiBold" />
+              <TextBlock Text="El DUID es obligatorio para preparar el certificado y continuar con la instalación. El instalador nunca te pedirá que lo escribas manualmente. Comprueba que el televisor está encendido y conectado a la misma red local y sigue estos pasos para activar Developer Mode:" TextWrapping="Wrap" />
               <TextBlock Text="1. Enciende el televisor y abre la sección Apps." TextWrapping="Wrap" />
               <TextBlock Text="2. Con el mando a distancia, introduce la secuencia 12345 para abrir el menú de Developer Mode." TextWrapping="Wrap" />
               <TextBlock Text="3. Activa Developer Mode (ON)." TextWrapping="Wrap" />
-              <TextBlock Text="4. En el campo Host PC IP, introduce exactamente esta dirección IP:" TextWrapping="Wrap" />
+              <TextBlock Name="DeveloperModeHostIpDescription" Text="4. En el campo Host PC IP, introduce exactamente esta dirección IP:" TextWrapping="Wrap" />
               <Border Padding="12" CornerRadius="6" Background="{DynamicResource SystemControlBackgroundAltHighBrush}">
                 <TextBlock Name="HostIpAddress" Text="Consultando dirección IP…" FontSize="20" FontWeight="SemiBold" />
               </Border>
               <TextBlock Text="5. Confirma la configuración y reinicia el televisor si lo solicita. Comprueba que el ordenador y la TV están conectados a la misma red local." TextWrapping="Wrap" />
-              <TextBlock Text="Cuando hayas terminado, pulsa Reintentar. Se repetirá la detección de televisores y, si Developer Mode está activo, también se intentará leer el DUID." TextWrapping="Wrap" Opacity="0.8" />
+              <TextBlock Text="Cuando hayas terminado, pulsa Reintentar. Se repetirá la detección y se intentará leer automáticamente el DUID a través del relay confirmado o del puerto SDB convencional." TextWrapping="Wrap" Opacity="0.8" />
               <Button Name="RetryTelevisionDiscoveryButton" Content="Reintentar" HorizontalAlignment="Left" Click="OnDiscoverTelevisionsClick" />
             </StackPanel>
             <StackPanel Name="TelevisionSelectionPanel" Spacing="8" IsVisible="False">
@@ -59,9 +59,9 @@
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Name="EnsureCertificateButton" Content="Preparar certificado" HorizontalAlignment="Left" IsEnabled="False" Click="OnEnsureCertificateClick" />
               <Button Name="SignWgtButton" Content="Firmar paquete incluido…" HorizontalAlignment="Left" IsEnabled="False" Click="OnSignWgtClick" />
-              <Button Name="InstallWgtButton" Content="Enviar a TV-Store para instalar" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick" />
+              <Button Name="InstallWgtButton" Content="Instalar Moonlight en el televisor" HorizontalAlignment="Left" IsEnabled="False" Click="OnInstallWgtClick" />
             </StackPanel>
-            <TextBlock Text="La instalación sin SDB utiliza Apps2Samsung TV-Store: el paquete se transfiere por red y debes confirmar «Instalar» en la pantalla del televisor. TV-Store debe estar instalado y tener un certificado de firma configurado." TextWrapping="Wrap" Opacity="0.7" />
+            <TextBlock Text="La instalación se realiza mediante SDB y requiere un DUID válido. Si Apps2Samsung TV-Store está instalado y su relay responde como activo, el instalador lo utiliza automáticamente; si no, conecta directamente al puerto SDB estándar." TextWrapping="Wrap" Opacity="0.7" />
             <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Opacity="0.8" />
           </StackPanel>
         </Border>
