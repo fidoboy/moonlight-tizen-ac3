@@ -74,7 +74,7 @@ public sealed class StarFieldControl : OpenGlControlBase
             v_color = a_color;
 
             // Match the website's depth-based radius and its subtle per-star size range.
-            float radius = (1.0 - z / 1500.0) * a_size * 3.0;
+            float radius = (1.0 - z / 1500.0) * a_size * 3.6;
             gl_PointSize = max(1.0, radius * u_scale);
         }
         """;
