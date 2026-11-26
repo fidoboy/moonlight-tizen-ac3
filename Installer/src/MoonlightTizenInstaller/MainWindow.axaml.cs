@@ -888,10 +888,10 @@ public sealed partial class MainWindow : Window
             try { if (Directory.Exists(temporaryDirectory)) Directory.Delete(temporaryDirectory, recursive: true); }
             catch { /* Best-effort cleanup of the temporary signed WGT. */ }
             _installationFinished = true;
-            if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } progressBar)
-                progressBar.IsVisible = false;
-            if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } progressPanel)
-                progressPanel.IsVisible = false;
+            if (this.FindControl<ProgressBar>("InstallationProgressBar") is { } finalProgressBar)
+                finalProgressBar.IsVisible = false;
+            if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } finalProgressPanel)
+                finalProgressPanel.IsVisible = false;
             SetWizardStep(5);
             SetTelevisionActionsEnabled(TizenDuid.IsValid(_selectedDuid));
         }
