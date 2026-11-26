@@ -18,7 +18,7 @@
       </Border.Background>
       <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
         <Image Name="MoonlightBrandLogo" Width="104" Height="104" Stretch="Uniform" Margin="0,0,18,0" />
-        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Left" Spacing="3">
           <TextBlock Text="Moonlight for Tizen" FontFamily="Inter" FontSize="43"
                      FontWeight="ExtraBold">
             <TextBlock.Foreground>
@@ -30,7 +30,7 @@
             </TextBlock.Foreground>
           </TextBlock>
           <TextBlock Text="Enhanced version · with Dolby Digital audio support"
-                     FontFamily="Inter" FontSize="14" Foreground="#ACBAD0"
+                     FontFamily="Inter" FontSize="12" Foreground="#ACBAD0"
                      HorizontalAlignment="Right" />
         </StackPanel>
       </Grid>
@@ -77,9 +77,9 @@
         <StackPanel Name="WelcomePage" Spacing="18" IsVisible="True">
           <TextBlock Text="ASISTENTE DE INSTALACIÓN" Foreground="#A7D3FF"
                      FontSize="12" FontWeight="Bold" />
-          <TextBlock Text="Instala Moonlight en tu Samsung TV."
+          <TextBlock Text="Instala Moonlight en tu TV con TizenOS."
                      FontSize="32" FontWeight="Bold" FontFamily="Inter" TextWrapping="Wrap" />
-          <TextBlock Text="Este asistente detectará tu televisor y utilizará primero TV-Store cuando esté disponible. Si no es posible completar la instalación por esa vía, continuará automáticamente mediante SDB."
+          <TextBlock Text="Este asistente detectará tu televisor y te guiará durante la instalación de Moonlight."
                      FontSize="17" Foreground="#ACBAD0" TextWrapping="Wrap" MaxWidth="730" />
           <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
                   CornerRadius="16" Padding="22" Margin="0,10,0,0">
@@ -89,8 +89,6 @@
                          Foreground="#D6E1F2" TextWrapping="Wrap" />
               <TextBlock Text="• Si Developer Mode aún no está activado, el asistente te mostrará cómo hacerlo y qué dirección IP debes introducir."
                          Foreground="#D6E1F2" TextWrapping="Wrap" />
-              <TextBlock Text="• No necesitas introducir manualmente el DUID ni gestionar certificados existentes."
-                         Foreground="#D6E1F2" TextWrapping="Wrap" />
             </StackPanel>
           </Border>
         </StackPanel>
@@ -98,7 +96,7 @@
         <StackPanel Name="TelevisionPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 2 · TELEVISOR" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Text="Buscando tu Samsung TV" FontSize="28" FontWeight="Bold" />
+          <TextBlock Text="Buscando tu TV con TizenOS" FontSize="28" FontWeight="Bold" />
           <TextBlock Text="Se detectan automáticamente los televisores de la red local. No se solicitará el DUID manualmente."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
           <StackPanel Name="TelevisionSearchingPanel" Spacing="8" IsVisible="True">
@@ -168,15 +166,15 @@
         <StackPanel Name="CertificatePage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 4 · CERTIFICADO" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Text="Preparar la firma de Samsung" FontSize="28" FontWeight="Bold" />
-          <TextBlock Text="El instalador reutiliza automáticamente un certificado Partner válido guardado de una ejecución anterior. Solo abrirá Samsung si hace falta crear uno o renovarlo."
+          <TextBlock Text="Preparar el certificado de instalación" FontSize="28" FontWeight="Bold" />
+          <TextBlock Text="El instalador reutiliza automáticamente un certificado Partner válido guardado de una ejecución anterior. Solo abrirá el portal de certificados si hace falta crear uno o renovarlo."
                      Foreground="#ACBAD0" TextWrapping="Wrap" />
           <Border Background="#101A2D" BorderBrush="#293B59" BorderThickness="1"
                   CornerRadius="12" Padding="20">
             <StackPanel Spacing="12">
               <TextBlock Name="CertificateOperationStatus" TextWrapping="Wrap" Foreground="#D6E1F2" />
               <Button Name="GenerateCertificateButton"
-                      Content="Crear o renovar certificado con Samsung"
+                      Content="Crear o renovar certificado Partner"
                       HorizontalAlignment="Left" IsEnabled="False"
                       Click="OnGenerateCertificateClick" Classes="primary" />
             </StackPanel>
