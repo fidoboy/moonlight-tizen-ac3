@@ -377,7 +377,7 @@
                          IsVisible="False" TextWrapping="Wrap" Foreground="#ACBAD0"
                          FontSize="14" Margin="0,8,0,0" />
               <Button Name="UninstallAndRetryButton" Content="Uninstall &amp; retry"
-                      IsVisible="False" HorizontalAlignment="Left" Margin="0,8,0,0"
+                      IsVisible="False" HorizontalAlignment="Center" Margin="0,13,0,0"
                       Click="OnUninstallAndRetryClick" Classes="primary" />
             </StackPanel>
           </Grid>
