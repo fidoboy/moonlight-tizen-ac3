@@ -110,6 +110,56 @@ public sealed class SdbInstallationService
         return new InstallationResult(packageId, sdbPort, result.Trim());
     }
 
+    public async Task<string> UninstallAsync(
+        string televisionIp,
+        int sdbPort,
+        string packagePath,
+        IProgress<string>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(televisionIp);
+        ArgumentException.ThrowIfNullOrWhiteSpace(packagePath);
+        if (!File.Exists(packagePath))
+            throw new FileNotFoundException("No se encuentra el WGT firmado necesario para identificar la aplicación.", packagePath);
+        if (sdbPort is < 1 or > 65535)
+            throw new ArgumentOutOfRangeException(nameof(sdbPort));
+
+        var packageId = ReadPackageId(packagePath);
+        progress?.Report("Uninstalling Moonlight…");
+
+        await using var device = new SdbTcpDevice(IPAddress.Parse(televisionIp), sdbPort);
+        await device.ConnectAsync(cancellationToken).ConfigureAwait(false);
+
+        var output = new StringBuilder();
+        await foreach (var line in device.ShellCommandLinesAsync(
+                           $"0 vd_appuninstall {packageId}",
+                           cancellationToken).ConfigureAwait(false))
+        {
+            output.AppendLine(line);
+        }
+
+        var result = output.ToString().Trim();
+        if (string.IsNullOrWhiteSpace(result) ||
+            result.Contains("uninstall failed[", StringComparison.OrdinalIgnoreCase) ||
+            result.Contains("val[fail]", StringComparison.OrdinalIgnoreCase) ||
+            result.Contains("app uninstall return : [1]", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                string.IsNullOrWhiteSpace(result)
+                    ? "The TV did not return a result for the Moonlight uninstall request."
+                    : $"The TV could not uninstall Moonlight: {result}");
+        }
+
+        var confirmed = result.Contains("app uninstall return : [0]", StringComparison.OrdinalIgnoreCase) ||
+                        result.Contains("uninstall completed", StringComparison.OrdinalIgnoreCase) ||
+                        result.Contains("uninstalling[100]", StringComparison.OrdinalIgnoreCase);
+        if (!confirmed)
+            throw new InvalidOperationException(
+                $"The TV did not confirm that Moonlight was uninstalled successfully: {result}");
+
+        return result;
+    }
+
     private static string ReadPackageId(string packagePath)
     {
         using var archive = ZipFile.OpenRead(packagePath);
