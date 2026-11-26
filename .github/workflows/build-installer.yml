@@ -63,13 +63,15 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest")"
-          wgt_url="$(printf '%s' "$release_json" | jq -er '.assets[] | select(.name == "Moonlight.wgt") | .browser_download_url' | head -n 1)"
-          test -n "$wgt_url"
-          curl --fail --silent --show-error --location --retry 3 \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" "$wgt_url" \
-            --output Installer/src/MoonlightTizenInstaller/Moonlight.wgt
-          test -s Installer/src/MoonlightTizenInstaller/Moonlight.wgt
-          unzip -tq Installer/src/MoonlightTizenInstaller/Moonlight.wgt
+          for package in Moonlight.wgt Moonlight-ForceGM.wgt; do
+            wgt_url="$(printf '%s' "$release_json" | jq -er --arg name "$package" '.assets[] | select(.name == $name) | .browser_download_url' | head -n 1)"
+            test -n "$wgt_url"
+            curl --fail --silent --show-error --location --retry 3 \
+              -H "Authorization: Bearer ${GITHUB_TOKEN}" "$wgt_url" \
+              --output "Installer/src/MoonlightTizenInstaller/$package"
+            test -s "Installer/src/MoonlightTizenInstaller/$package"
+            unzip -tq "Installer/src/MoonlightTizenInstaller/$package"
+          done
 
       - name: Restore
         run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --runtime ${{ matrix.rid }}
