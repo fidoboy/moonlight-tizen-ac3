@@ -719,7 +719,7 @@ public sealed partial class MainWindow : Window
             normalPanel.IsVisible = hasDuid && !certificateReady;
         if (this.FindControl<Border>("CertificateReadyPanel") is { } readyPanel)
             readyPanel.IsVisible = hasDuid && certificateReady;
-        if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
+        if (certificateReady && this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
             certificateStatus.IsVisible = false;
         if (hasDuid && certificateReady)
         {
