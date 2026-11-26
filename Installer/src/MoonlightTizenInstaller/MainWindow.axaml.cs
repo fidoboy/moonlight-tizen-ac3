@@ -438,8 +438,13 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<StackPanel>("TvStoreResultPanel") is { } resultPanel)
             resultPanel.IsVisible = true;
         if (this.FindControl<Border>("TvStoreResultIconCircle") is { } iconCircle)
+        {
+            var statusColor = Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62");
             iconCircle.Background = new Avalonia.Media.SolidColorBrush(
                 Avalonia.Media.Color.Parse(success ? "#173F2B" : "#4A2025"));
+            iconCircle.BorderBrush = new Avalonia.Media.SolidColorBrush(statusColor);
+            iconCircle.BorderThickness = new Avalonia.Thickness(3);
+        }
         if (this.FindControl<Avalonia.Controls.Shapes.Path>("TvStoreResultIcon") is { } icon)
         {
             icon.Data = Avalonia.Media.Geometry.Parse(success
