@@ -270,7 +270,7 @@ public sealed partial class MainWindow : Window
         };
         var dialog = new Window
         {
-            Title = "No se puede iniciar Moonlight Tizen Installer",
+            Title = InstallerLocalization.T("No se puede iniciar Moonlight Tizen Installer"),
             Width = 480,
             SizeToContent = Avalonia.Controls.SizeToContent.Height,
             CanResize = false,
@@ -404,7 +404,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions($"No se ha podido completar la detección ({ex.Message}). Comprueba la conexión de red y vuelve a intentarlo.");
+            ShowDeveloperModeInstructions(InstallerLocalization.T($"No se ha podido completar la detección ({ex.Message}). Comprueba la conexión de red y vuelve a intentarlo."));
         }
         finally
         {
@@ -425,11 +425,11 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
         var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
-            hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? "No se ha podido determinar una IPv4 privada";
+            hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? InstallerLocalization.T("No se ha podido determinar una IPv4 privada");
         if (this.FindControl<TextBlock>("DeveloperModeHostIpDescription") is { } hostIpDescription)
             hostIpDescription.Text = useRelay
-                ? "Introduce exactamente 127.0.0.1 en Host PC IP:"
-                : "Introduce la dirección IPv4 de este ordenador en Host PC IP:";
+                ? InstallerLocalization.T("Introduce exactamente 127.0.0.1 en Host PC IP:")
+                : InstallerLocalization.T("Introduce la dirección IPv4 de este ordenador en Host PC IP:");
         SetWizardStep(2);
     }
 
@@ -485,7 +485,7 @@ public sealed partial class MainWindow : Window
                 : "No se ha podido entregar Moonlight.wgt a TV-Store y la aplicación no se ha instalado. Comprueba que el televisor sigue conectado y vuelve a ejecutar el instalador. Si prefieres utilizar la instalación normal, rechaza la opción de TV-Store cuando vuelva a aparecer.");
             resultMessage.Text = string.IsNullOrWhiteSpace(failureDetails)
                 ? message
-                : $"{message}{Environment.NewLine}{Environment.NewLine}{HideInternalProtocolNames(failureDetails)}";
+                : $"{message}{Environment.NewLine}{Environment.NewLine}{InstallerLocalization.T(HideInternalProtocolNames(failureDetails))}";
         }
         SetWizardStep(4);
     }
@@ -504,7 +504,7 @@ public sealed partial class MainWindow : Window
             Dispatcher.UIThread.Post(() =>
             {
                 if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } status)
-                    status.Text = HideInternalProtocolNames(message);
+                    status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
             }));
 
         try
@@ -539,7 +539,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions($"No se ha podido preparar la instalación ({ex.Message}). Comprueba la conexión y pulsa Reintentar.");
+            ShowDeveloperModeInstructions(InstallerLocalization.T($"No se ha podido preparar la instalación ({ex.Message}). Comprueba la conexión y pulsa Reintentar."));
         }
         finally
         {
@@ -743,7 +743,7 @@ public sealed partial class MainWindow : Window
         {
             var details = _certificates.GetCertificateDetailsForTelevision(_selectedDuid!);
             if (this.FindControl<TextBlock>("CertificateIssuerDetails") is { } issuer)
-                issuer.Text = details?.Subject ?? "Certificado de firma instalado";
+                issuer.Text = details?.Subject ?? InstallerLocalization.T("Certificado de firma instalado");
             if (this.FindControl<TextBlock>("CertificateValidityDetails") is { } validity && details is not null)
                 validity.Text = InstallerLocalization.T("Emitido: {0} · Caduca: {1}")
                     .Replace("{0}", details.Value.IssuedOn.ToLocalTime().ToString("d"))
@@ -796,7 +796,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            if (status is not null) status.Text = $"No se pudo generar el certificado: {ex.Message}";
+            if (status is not null) status.Text = InstallerLocalization.T($"No se pudo generar el certificado: {ex.Message}");
         }
         finally
         {
@@ -813,7 +813,7 @@ public sealed partial class MainWindow : Window
         var duid = GetSelectedDuid();
         if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
-            ShowInstallationResult(false, "No se ha podido identificar correctamente el televisor. Vuelve al paso anterior y repite la detección.");
+            ShowInstallationResult(false, InstallerLocalization.T("No se ha podido identificar correctamente el televisor. Vuelve al paso anterior y repite la detección."));
             _installationFinished = true;
             if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } invalidProgress)
                 invalidProgress.IsVisible = false;
@@ -822,7 +822,7 @@ public sealed partial class MainWindow : Window
         }
         if (television is null)
         {
-            ShowInstallationResult(false, "No se ha seleccionado un televisor. Vuelve al paso anterior y selecciona el dispositivo.");
+            ShowInstallationResult(false, InstallerLocalization.T("No se ha seleccionado un televisor. Vuelve al paso anterior y selecciona el dispositivo."));
             _installationFinished = true;
             if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } missingProgress)
                 missingProgress.IsVisible = false;
@@ -865,7 +865,7 @@ public sealed partial class MainWindow : Window
             SdbInstallationService.InstallationResult result;
             try
             {
-                SetOperationStatus($"Instalando Moonlight mediante {endpointDescription}…");
+                SetOperationStatus(InstallerLocalization.T("Instalando Moonlight…"));
                 result = await _sdbInstaller.InstallAsync(
                     television.IpAddress, television.SdbPort, signedPackagePath, installProgress);
             }
@@ -880,7 +880,7 @@ public sealed partial class MainWindow : Window
                 endpointDescription = "la conexión restablecida con el televisor";
             }
 
-            SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight mediante {endpointDescription}.");
+            SetOperationStatus(InstallerLocalization.T("Tizen ha confirmado la instalación de Moonlight."));
             _installationCompleted = true;
             ShowInstallationResult(true, InstallerLocalization.T("Moonlight se ha instalado correctamente en el televisor {0}. Comprueba que aparece en la lista de aplicaciones desde donde ya lo puedes iniciar siempre que quieras.").Replace("{0}", television.FriendlyName));
         }
@@ -896,11 +896,11 @@ public sealed partial class MainWindow : Window
                 errorMessage.Contains("author-certificate", StringComparison.OrdinalIgnoreCase))
             {
                 ShowInstallationResult(false,
-                    "Tizen ha rechazado la instalación porque el certificado de autor no coincide con el de la versión de Moonlight que ya está instalada. Desinstala primero Moonlight desde el televisor y vuelve a ejecutar este instalador. No generes otro certificado: eso no resolverá esta incompatibilidad.");
+                    InstallerLocalization.T("Tizen ha rechazado la instalación porque el certificado de autor no coincide con el de la versión de Moonlight que ya está instalada. Desinstala primero Moonlight desde el televisor y vuelve a ejecutar este instalador. No generes otro certificado: eso no resolverá esta incompatibilidad."));
             }
             else
             {
-                ShowInstallationResult(false, $"No se ha podido instalar Moonlight en el televisor. {HideInternalProtocolNames(errorMessage)}");
+                ShowInstallationResult(false, InstallerLocalization.T($"No se ha podido instalar Moonlight en el televisor. {HideInternalProtocolNames(errorMessage)}"));
             }
         }
         finally
@@ -968,6 +968,6 @@ public sealed partial class MainWindow : Window
         displayMessage = System.Text.RegularExpressions.Regex.Replace(displayMessage, @"\s*\d{1,3}\s*%", "");
         displayMessage = System.Text.RegularExpressions.Regex.Replace(displayMessage, @"\s{2,}", " ").Trim();
         if (this.FindControl<TextBlock>("InstallationOperationStatus") is { } status)
-            status.Text = HideInternalProtocolNames(displayMessage);
+            status.Text = InstallerLocalization.T(HideInternalProtocolNames(displayMessage));
     }
 }
