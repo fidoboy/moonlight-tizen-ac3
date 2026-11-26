@@ -85,8 +85,6 @@ public sealed partial class MainWindow : Window
 
         if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
             finishButton.Click += OnFinishTvStoreHandoffClick;
-        if (this.FindControl<ComboBox>("TelevisionSelection") is { } selector)
-            selector.SelectionChanged += OnTelevisionSelectionChanged;
     }
 
     private void OnLanguageSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -152,15 +150,15 @@ public sealed partial class MainWindow : Window
             {
                 1 => "Comenzar",
                 2 => "Continuar",
-                3 => "Siguiente",
+                3 => "Instalar",
                 4 => "Ir a instalación",
                 _ => "Finalizar"
             });
             next.IsEnabled = _wizardStep switch
             {
                 1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
-                2 => _selectedTelevision is not null && !_discoveryInProgress,
-                3 => TizenDuid.IsValid(_selectedDuid),
+                2 => !_discoveryInProgress,
+                3 => _selectedTelevision is not null && !_discoveryInProgress && !_tvStoreHandoff,
                 4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
                 _ => _installationCompleted
             };
@@ -176,12 +174,11 @@ public sealed partial class MainWindow : Window
                 await DiscoverTelevisionsAsync();
                 break;
             case 2:
-                if (_selectedTelevision is { } selectedTelevision)
-                    await SelectTelevisionAsync(selectedTelevision);
+                SetWizardStep(3);
                 break;
             case 3:
-                if (TizenDuid.IsValid(_selectedDuid))
-                    SetWizardStep(4);
+                if (_selectedTelevision is { } selectedTelevision)
+                    await SelectTelevisionAsync(selectedTelevision);
                 break;
             case 4:
                 if (TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!))
@@ -279,19 +276,18 @@ public sealed partial class MainWindow : Window
         SetTelevisionActionsEnabled(false);
         var searching = this.FindControl<StackPanel>("TelevisionSearchingPanel");
         var activation = this.FindControl<StackPanel>("TelevisionActivationPanel");
-        var selectionPanel = this.FindControl<StackPanel>("TelevisionSelectionPanel");
-        var selector = this.FindControl<ComboBox>("TelevisionSelection");
+        var cards = this.FindControl<ListBox>("TelevisionCards");
         var retry = this.FindControl<Button>("RetryTelevisionDiscoveryButton");
         var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
         var searchStatus = this.FindControl<TextBlock>("TelevisionSearchStatus");
 
         if (searching is not null) searching.IsVisible = true;
         if (activation is not null) activation.IsVisible = false;
-        if (selectionPanel is not null) selectionPanel.IsVisible = false;
-        if (selector is not null)
+        if (cards is not null)
         {
-            selector.ItemsSource = null;
-            selector.SelectedItem = null;
+            cards.IsVisible = false;
+            cards.ItemsSource = null;
+            cards.SelectedItem = null;
         }
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
@@ -312,22 +308,23 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
-            if (devices.Count == 1)
+            if (cards is not null)
             {
-                await SelectTelevisionAsync(devices[0]);
-                return;
+                cards.ItemsSource = devices;
+                cards.SelectedIndex = devices.Count == 1 ? 0 : -1;
+                cards.IsVisible = true;
             }
 
-            if (selector is not null)
-            {
-                selector.ItemsSource = devices;
-                selector.SelectedIndex = -1;
-            }
+            _selectedTelevision = devices.Count == 1 ? devices[0] : null;
             if (searching is not null) searching.IsVisible = false;
-            if (selectionPanel is not null) selectionPanel.IsVisible = true;
-            if (status is not null)
-                status.Text = InstallerLocalization.T($"Se han detectado {{0}} televisores con TizenOS. Selecciona uno y pulsa «Siguiente» para continuar.").Replace("{0}", devices.Count.ToString(CultureInfo.CurrentCulture));
-            SetWizardStep(2);
+            if (this.FindControl<TextBlock>("ConnectionSummary") is { } connectionSummary)
+            {
+                connectionSummary.Text = devices.Count > 1
+                    ? InstallerLocalization.T("Se han detectado varios televisores. Selecciona el que quieras utilizar para instalar Moonlight y pulsa «Instalar» cuando estés listo para comenzar.")
+                    : InstallerLocalization.T("Pulsa «Instalar» cuando estés listo para comenzar.");
+            }
+            if (status is not null) status.Text = string.Empty;
+            SetWizardStep(3);
         }
         catch (OperationCanceledException)
         {
@@ -348,7 +345,7 @@ public sealed partial class MainWindow : Window
     private void ShowDeveloperModeInstructions(string message, bool keepSelectionPanel = false)
     {
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = false;
-        if (!keepSelectionPanel && this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
+        if (this.FindControl<ListBox>("TelevisionCards") is { } cards) cards.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = true;
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
         var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
@@ -371,7 +368,7 @@ public sealed partial class MainWindow : Window
         _tvStoreHandoff = false;
 
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
-        if (this.FindControl<StackPanel>("TelevisionSelectionPanel") is { } selection) selection.IsVisible = false;
+        if (this.FindControl<ListBox>("TelevisionCards") is { } cards) cards.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
         if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
         if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
@@ -516,19 +513,12 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private async void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        _selectedTelevision = this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem as DiscoveredTelevision;
+        _selectedTelevision = this.FindControl<ListBox>("TelevisionCards")?.SelectedItem as DiscoveredTelevision;
         _selectedDuid = null;
-        if (_selectedTelevision is { } selected)
-        {
-            await SelectTelevisionAsync(selected);
-            return;
-        }
-
-        if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
-            status.Text = "Selecciona una TV con TizenOS para continuar.";
-        SetWizardStep(2);
+        if (this.FindControl<Button>("WizardNextButton") is { } installButton)
+            installButton.IsEnabled = _selectedTelevision is not null && !_discoveryInProgress;
     }
 
 
@@ -561,24 +551,15 @@ public sealed partial class MainWindow : Window
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
             Child = new Grid
             {
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
-                Children =
-                {
-                    new Viewbox
-                    {
-                        Width = 48,
-                        Height = 48,
-                        Stretch = Avalonia.Media.Stretch.Uniform,
-                        HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                        VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                        Child = storeIcon
-                    }
-                }
+                Width = 76,
+                Height = 76,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                Children = { storeIcon }
             }
         };
-        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
-        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
+        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         var useButton = new Button
         {
             Content = InstallerLocalization.T("Sí, utilizar TV-Store"),
