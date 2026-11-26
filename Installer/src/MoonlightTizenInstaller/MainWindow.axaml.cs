@@ -44,6 +44,7 @@ public sealed partial class MainWindow : Window
         _certificates = certificates;
         _discovery = discovery;
         InitializeComponent();
+        Closed += (_, _) => CleanupRetryPackage();
         InstallerLocalization.Apply(this);
         if (!InstallerLocalization.HasSupportedSystemLocale)
         {
@@ -1052,6 +1053,18 @@ public sealed partial class MainWindow : Window
             SetWizardStep(5);
             SetTelevisionActionsEnabled(TizenDuid.IsValid(_selectedDuid));
         }
+    }
+
+    private void CleanupRetryPackage()
+    {
+        if (!string.IsNullOrWhiteSpace(_signedPackageDirectoryForRetry) &&
+            Directory.Exists(_signedPackageDirectoryForRetry))
+        {
+            try { Directory.Delete(_signedPackageDirectoryForRetry, recursive: true); }
+            catch { /* Best-effort cleanup when the installer window closes. */ }
+        }
+        _signedPackagePathForRetry = null;
+        _signedPackageDirectoryForRetry = null;
     }
 
     private void ShowInstallationResult(bool success, string message)
