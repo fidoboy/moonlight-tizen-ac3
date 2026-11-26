@@ -16,6 +16,7 @@ The final installer is intended to embed the release WGT at build time; the curr
 
 The installer now compiles the selected Apps2Samsung certificate source subset into its Core project through linked source files. `CertificateManager` is the installer-owned entry point for:
 
+- Discovering TVs on active local IPv4 networks through the Tizen SDB developer port (26101), then reading and validating each DUID with the `0 getduid` command. The TV name is fetched best-effort from the Samsung REST API (port 8001).
 - Reusing an existing Samsung Partner signing profile when its author certificate is valid and its distributor certificate covers the selected TV DUID.
 - Starting Samsung SignInGate authentication and issuing a full Partner author/distributor profile when required.
 - Reissuing only the Partner distributor certificate when the author identity can be retained but the selected TV DUID is not covered.
@@ -40,7 +41,7 @@ If they are absent, existing profiles can still be recovered and reused, but new
 
 Samsung authentication is performed in the system browser through the upstream loopback callback. Certificate profile files retain the upstream Apps2Samsung layout, including its `password.txt` file; the installer currently protects them by storing the profile directory under the current user's local application data and must not sync it to cloud storage. A future platform-specific secret-store migration should replace plaintext password persistence without breaking archive compatibility.
 
-The certificate and local WGT-signing subsystem is integrated and covered by the four-platform compile workflow. The end-to-end installer is not yet complete: TV discovery must supply the real DUID to `EnsureForTelevisionAsync`, the authorized CA files must be provisioned, and the signed WGT still has to be handed to the separate TV installation stage. No SDB transport or TV installation functionality is included. WGT signing uses the local `TizenWgtSigner` implementation from `TizenSdb.Core` and does not require a TV connection or Tizen Studio.
+The certificate and local WGT-signing subsystem is integrated and covered by the four-platform compile workflow. The end-to-end installer is not yet complete: the discovery component can find TVs with Developer Mode/SDB active and read their DUIDs, but TVs that do not expose port 26101 must still be entered manually. The authorized CA files must be provisioned, and the signed WGT still has to be handed to the separate TV installation stage. The discovery layer uses SDB only to read the DUID; it does not install packages or modify the TV. WGT signing uses the local `TizenWgtSigner` implementation from `TizenSdb.Core` and does not require a TV connection or Tizen Studio.
 
 ## Upstream source and licensing
 

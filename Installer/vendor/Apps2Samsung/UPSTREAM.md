@@ -8,7 +8,7 @@ The files in this directory are copied from **Apps2Samsung** at upstream commit
 - The copied source files are preserved verbatim, including their upstream namespaces and comments.
 - This is a deliberately restricted source subset for Samsung certificate issuance, profile recovery,
   profile validation, recovery and signing of WGT packages.
-- No Apps2Samsung device discovery, SDB transport, package installation, catalog, Jellyfin, remote-control,
+- No Apps2Samsung package installation, catalog, Jellyfin, remote-control,
   mobile UI, Tizen-local certificate-generation or Tizen SDK asset code is included.
 
 ## Included source areas

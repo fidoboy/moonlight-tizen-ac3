@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 using MoonlightTizenInstaller.Core.Certificates;
+using MoonlightTizenInstaller.Core.Network;
 using Apps2Samsung.Interfaces;
 using Apps2Samsung.Models;
 
@@ -10,15 +11,116 @@ namespace MoonlightTizenInstaller;
 public sealed partial class MainWindow : Window
 {
     private readonly CertificateManager _certificates;
+    private readonly TelevisionDiscoveryService _discovery;
 
-    public MainWindow(CertificateManager certificates)
+    public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
     {
         _certificates = certificates;
+        _discovery = discovery;
         InitializeComponent();
         RefreshCertificateStatus();
+        Opened += async (_, _) => await DiscoverTelevisionsAsync();
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
+
+    private async void OnDiscoverTelevisionsClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+        await DiscoverTelevisionsAsync();
+
+    private async Task DiscoverTelevisionsAsync()
+    {
+        var button = this.FindControl<Button>("DiscoverTelevisionsButton");
+        var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
+        var selector = this.FindControl<ComboBox>("TelevisionSelection");
+        var duidBox = this.FindControl<TextBox>("TelevisionDuid");
+        if (button is not null) button.IsEnabled = false;
+        if (status is not null) status.Text = "Buscando televisores y leyendo sus DUID…";
+        if (selector is not null)
+        {
+            selector.IsVisible = false;
+            selector.ItemsSource = null;
+            selector.SelectedItem = null;
+        }
+        if (duidBox is not null)
+        {
+            duidBox.IsVisible = true;
+            duidBox.IsReadOnly = false;
+            duidBox.Text = string.Empty;
+        }
+
+        try
+        {
+            var progress = new Progress<string>(message =>
+            {
+                if (status is not null) status.Text = message;
+            });
+            var devices = await _discovery.DiscoverAsync(progress);
+            if (devices.Count == 0)
+            {
+                if (status is not null)
+                    status.Text = "No se han detectado televisores con el puerto SDB disponible. Puedes introducir el DUID manualmente.";
+                return;
+            }
+
+            if (devices.Count == 1)
+            {
+                var device = devices[0];
+                if (duidBox is not null)
+                {
+                    duidBox.Text = device.Duid;
+                    duidBox.IsReadOnly = true;
+                }
+                if (status is not null)
+                    status.Text = $"Televisor detectado: {device.DisplayName}";
+                return;
+            }
+
+            if (selector is not null)
+            {
+                selector.ItemsSource = devices;
+                selector.SelectedIndex = 0;
+                selector.IsVisible = true;
+            }
+            if (duidBox is not null)
+                duidBox.IsVisible = false;
+            if (status is not null)
+                status.Text = $"Se han detectado {devices.Count} televisores. Selecciona el que quieras utilizar.";
+            UpdateSelectedTelevisionDuid();
+        }
+        catch (OperationCanceledException)
+        {
+            if (status is not null) status.Text = "Búsqueda cancelada.";
+        }
+        catch (Exception ex)
+        {
+            if (status is not null)
+                status.Text = $"No se pudo completar la detección: {ex.Message}. Puedes introducir el DUID manualmente.";
+        }
+        finally
+        {
+            if (button is not null) button.IsEnabled = true;
+        }
+    }
+
+    private void OnTelevisionSelectionChanged(object? sender, SelectionChangedEventArgs e) =>
+        UpdateSelectedTelevisionDuid();
+
+    private void UpdateSelectedTelevisionDuid()
+    {
+        if (this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is not DiscoveredTelevision selected)
+            return;
+        var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
+        if (status is not null)
+            status.Text = $"Televisor seleccionado: {selected.DisplayName}";
+    }
+
+    private string? GetSelectedDuid()
+    {
+        if (this.FindControl<ComboBox>("TelevisionSelection")?.IsVisible == true &&
+            this.FindControl<ComboBox>("TelevisionSelection")?.SelectedItem is DiscoveredTelevision selected)
+            return selected.Duid;
+        return this.FindControl<TextBox>("TelevisionDuid")?.Text?.Trim();
+    }
 
     private void RefreshCertificateStatus()
     {
@@ -42,7 +144,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnEnsureCertificateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var duid = this.FindControl<TextBox>("TelevisionDuid")?.Text?.Trim();
+        var duid = GetSelectedDuid();
         const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
         var status = this.FindControl<TextBlock>("CertificateOperationStatus");
         var button = this.FindControl<Button>("EnsureCertificateButton");
@@ -93,7 +195,7 @@ public sealed partial class MainWindow : Window
 
     private async void OnSignWgtClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        var duid = this.FindControl<TextBox>("TelevisionDuid")?.Text?.Trim();
+        var duid = GetSelectedDuid();
         const CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner;
         var status = this.FindControl<TextBlock>("CertificateOperationStatus");
         var button = this.FindControl<Button>("SignWgtButton");

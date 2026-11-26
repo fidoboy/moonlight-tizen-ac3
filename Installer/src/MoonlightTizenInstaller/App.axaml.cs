@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using MoonlightTizenInstaller.Core.Certificates;
+using MoonlightTizenInstaller.Core.Network;
 
 namespace MoonlightTizenInstaller;
 
@@ -23,7 +24,8 @@ public sealed class App : Application
             Certificates = new CertificateManager(
                 new CertificateInstallerOptions(dataDirectory, caDirectory));
 
-            desktop.MainWindow = new MainWindow(Certificates);
+            var discovery = new TelevisionDiscoveryService(Path.Combine(dataDirectory, "sdb"));
+            desktop.MainWindow = new MainWindow(Certificates, discovery);
         }
 
         base.OnFrameworkInitializationCompleted();
