@@ -457,19 +457,19 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<Avalonia.Controls.Shapes.Path>("TvStoreResultIcon") is { } icon)
         {
             icon.Data = Avalonia.Media.Geometry.Parse(success
-                ? "M 18,39 L 31,51 L 57,25"
-                : "M 20,20 L 56,56 M 56,20 L 20,56");
+                ? "M 3,12 L 9,18 L 21,6"
+                : "M 6,6 L 18,18 M 18,6 L 6,18");
             icon.Stroke = new Avalonia.Media.SolidColorBrush(
                 Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
         }
         if (this.FindControl<TextBlock>("TvStoreResultTitle") is { } resultTitle)
             resultTitle.Text = InstallerLocalization.T(success
-                ? "Paquete transferido correctamente"
+                ? "Transferencia completada"
                 : "No se ha podido transferir el paquete");
         if (this.FindControl<TextBlock>("TvStoreResultMessage") is { } resultMessage)
         {
             var message = InstallerLocalization.T(success
-                ? "Moonlight.wgt se ha transferido correctamente a TV-Store. Para completar la instalación, acepta el mensaje de confirmación que aparecerá en la televisión. Si no aparece, abre TV-Store en el televisor y confirma allí la instalación."
+                ? "Moonlight para Tizen se ha transferido correctamente a TV-Store. Para completar la instalación, acepta el mensaje de confirmación que aparecerá en la televisión. Si no aparece, abre TV-Store en el televisor y confirma allí la instalación."
                 : "No se ha podido entregar Moonlight.wgt a TV-Store y la aplicación no se ha instalado. Comprueba que el televisor sigue conectado y vuelve a ejecutar el instalador. Si prefieres utilizar la instalación normal, rechaza la opción de TV-Store cuando vuelva a aparecer.");
             resultMessage.Text = string.IsNullOrWhiteSpace(failureDetails)
                 ? message
@@ -509,7 +509,10 @@ public sealed partial class MainWindow : Window
                     summary.Text = connectionMessage;
                 if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
                     status.Text = connectionMessage;
-                SetWizardStep(3);
+                // The selected TV is now identified and the connection is ready.
+                // Continue to certificate preparation instead of leaving the user on
+                // step 3 with an unchanged Install button.
+                SetWizardStep(4);
             }
             else
             {
@@ -569,19 +572,17 @@ public sealed partial class MainWindow : Window
             Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#203B60")),
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-            Child = new Viewbox
+            Child = new Grid
             {
-                Width = 48,
-                Height = 48,
-                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Child = storeIcon
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch,
+                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch,
+                Children = { storeIcon }
             }
         };
         storeIcon.Width = 48;
         storeIcon.Height = 48;
-        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
-        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;
+        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
+        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         var useButton = new Button
         {
             Content = InstallerLocalization.T("Sí, utilizar TV-Store"),
