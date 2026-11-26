@@ -310,7 +310,9 @@ public sealed partial class MainWindow : Window
         var retry = this.FindControl<Button>("RetryTelevisionDiscoveryButton");
         var status = this.FindControl<TextBlock>("TelevisionDiscoveryStatus");
         var searchStatus = this.FindControl<TextBlock>("TelevisionSearchStatus");
+        var foundList = this.FindControl<StackPanel>("TelevisionFoundList");
 
+        if (foundList is not null) foundList.Children.Clear();
         if (searching is not null) searching.IsVisible = true;
         if (activation is not null) activation.IsVisible = false;
         if (cards is not null)
@@ -321,7 +323,8 @@ public sealed partial class MainWindow : Window
         }
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
-        if (searchStatus is not null) searchStatus.Text = InstallerLocalization.T("Detectando televisores con TizenOS en la red local…");
+        if (searchStatus is not null)
+            searchStatus.Text = InstallerLocalization.T("Detectando televisores con TizenOS en la red local. Por favor, espera...");
 
         try
         {
@@ -329,7 +332,36 @@ public sealed partial class MainWindow : Window
             {
                 if (searchStatus is not null) searchStatus.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
             });
-            var devices = await _discovery.DiscoverAsync(progress);
+            var discoveredProgress = new Progress<DiscoveredTelevision>(television =>
+            {
+                if (foundList is null)
+                    return;
+
+                var row = new StackPanel
+                {
+                    Orientation = Avalonia.Layout.Orientation.Horizontal,
+                    Spacing = 8,
+                    Margin = new Avalonia.Thickness(0, 2, 0, 0),
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                };
+                row.Children.Add(new TextBlock
+                {
+                    Text = "✓",
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#35C978")),
+                    FontWeight = Avalonia.Media.FontWeight.Bold,
+                    FontSize = 15,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                });
+                row.Children.Add(new TextBlock
+                {
+                    Text = $"{television.FriendlyName} ({television.IpAddress})",
+                    Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#D6E1F2")),
+                    TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center
+                });
+                foundList.Children.Add(row);
+            });
+            var devices = await _discovery.DiscoverAsync(progress, discoveredProgress: discoveredProgress);
 
             if (devices.Count == 0)
             {
