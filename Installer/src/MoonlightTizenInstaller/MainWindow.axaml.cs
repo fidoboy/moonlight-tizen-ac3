@@ -882,7 +882,7 @@ public sealed partial class MainWindow : Window
 
             SetOperationStatus($"Tizen ha confirmado la instalación de Moonlight mediante {endpointDescription}.");
             _installationCompleted = true;
-            ShowInstallationResult(true, "Moonlight se ha instalado correctamente en el televisor.");
+            ShowInstallationResult(true, $"Moonlight se ha instalado correctamente en el televisor {television.FriendlyName}. Comprueba que aparece en el televisor; ya puedes iniciarlo desde allí.");
         }
         catch (OperationCanceledException)
         {
