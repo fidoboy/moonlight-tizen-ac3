@@ -149,6 +149,7 @@
             <ProgressBar IsIndeterminate="True" Height="6" />
             <TextBlock Name="TelevisionSearchStatus"
                        Text="Preparando la detección…" TextWrapping="Wrap" Foreground="#D6E1F2" />
+            <StackPanel Name="TelevisionFoundList" Spacing="5" />
           </StackPanel>
           <StackPanel Name="TelevisionActivationPanel" Spacing="10" IsVisible="False">
             <Border Background="#14213A" BorderBrush="#3E94F5" BorderThickness="1"
