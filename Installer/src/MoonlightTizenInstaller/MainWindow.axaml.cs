@@ -384,7 +384,7 @@ public sealed partial class MainWindow : Window
                         searchingPanel.IsVisible = false;
                     if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel)
                         tvStorePanel.IsVisible = true;
-                        if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
+                    if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
                         tvStoreStatus.Text = "Pulsa «Aceptar» en el mensaje de confirmación que aparece en el televisor.";
                     if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
                     {
@@ -400,7 +400,17 @@ public sealed partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            ShowDeveloperModeInstructions("La operación no se ha completado. Comprueba la conexión con el televisor y pulsa Reintentar.");
+            if (_tvStoreChosen)
+            {
+                _tvStoreHandoff = true;
+                if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searchingPanel) searchingPanel.IsVisible = false;
+                if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } tvStorePanel) tvStorePanel.IsVisible = true;
+                if (this.FindControl<TextBlock>("TvStoreHandoffStatus") is { } tvStoreStatus)
+                    tvStoreStatus.Text = "No se ha podido completar el envío a TV-Store.";
+                SetWizardStep(3);
+            }
+            else
+                ShowDeveloperModeInstructions("La operación no se ha completado. Comprueba la conexión con el televisor y pulsa Reintentar.");
         }
         catch (Exception ex)
         {
