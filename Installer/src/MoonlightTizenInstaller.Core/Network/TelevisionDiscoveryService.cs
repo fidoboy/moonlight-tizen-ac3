@@ -57,7 +57,8 @@ public sealed class TelevisionDiscoveryService
 
     public async Task<IReadOnlyList<DiscoveredTelevision>> DiscoverAsync(
         IProgress<string>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IProgress<DiscoveredTelevision>? discoveredProgress = null)
     {
         SdbTcpDevice.KeyDirectory = _sdbKeyDirectory;
         var addresses = GetCandidateAddresses();
@@ -75,7 +76,10 @@ public sealed class TelevisionDiscoveryService
             {
                 var television = await TryDiscoverTelevisionAsync(ip, cancellationToken).ConfigureAwait(false);
                 if (television is not null)
+                {
                     found.Add(television);
+                    discoveredProgress?.Report(television);
+                }
             }
             finally
             {
