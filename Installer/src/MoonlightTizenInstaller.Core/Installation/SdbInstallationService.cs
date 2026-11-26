@@ -52,7 +52,7 @@ public sealed class SdbInstallationService
         await using (var package = File.OpenRead(packagePath))
         {
             var transferProgress = new Progress<double>(fraction =>
-                progress?.Report($"Transfiriendo Moonlight.wgt… {Math.Clamp((int)Math.Round(fraction * 100), 0, 100)} %"));
+                progress?.Report($"Transfiriendo Moonlight.wgt… {Math.Clamp((int)Math.Round(fraction), 0, 100)} %"));
             await device.PushAsync(package, remotePath, transferProgress, cancellationToken).ConfigureAwait(false);
         }
 
