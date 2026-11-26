@@ -338,7 +338,7 @@ public sealed partial class MainWindow : Window
         if (retry is not null) retry.IsEnabled = false;
         if (status is not null) status.Text = string.Empty;
         if (searchStatus is not null)
-            searchStatus.Text = InstallerLocalization.T("Detectando televisores con TizenOS en la red local. Por favor, espera...");
+            searchStatus.Text = InstallerLocalization.T("Scanning the local network for TizenOS TVs. Please be patient; this process may take some time...");
 
         try
         {
