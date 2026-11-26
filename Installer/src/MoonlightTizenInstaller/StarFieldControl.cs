@@ -60,26 +60,19 @@ public sealed class StarFieldControl : OpenGlControlBase
             float z = mod(a_position.z - u_time, 1500.0);
             z = max(z, 1.0);
 
-            // The same width-based scale on both axes keeps the field circular
-            // even though the header is a wide, shallow rectangle.
-            float xProjection = u_width / (2.0 * z);
-            float yProjection = (u_width * u_width) / (2.0 * u_height * z);
-            gl_Position = vec4(a_position.x * xProjection,
-                               -a_position.y * yProjection, 0.0, 1.0);
+            // Match the website canvas projection: X and Y use the same
+            // world-space depth, while the viewport applies its own aspect ratio.
+            gl_Position = vec4(a_position.x * u_width / (2.0 * z),
+                               -a_position.y * u_width / (2.0 * z), 0.0, 1.0);
 
-            float radialDistance = length(a_position.xy) * u_width / (2.0 * z);
-            // Keep stars visible on the central axis while gradually increasing
-            // their opacity toward the outer part of the projected field.
-            float fade = smoothstep(0.015, 0.30, radialDistance);
-            v_alpha = mix(0.32, 1.0, fade);
+            // The website does not fade stars by their distance from the center.
+            // Keep their opacity consistent so the full field remains evenly populated.
+            v_alpha = 1.0;
             v_color = a_color;
 
-            // Use a continuous, eased depth curve with a visible minimum size.
-            // This preserves a smooth range of tiny, medium and larger stars
-            // instead of collapsing distant stars to sub-pixel points.
-            float depthFactor = 1.0 - z / 1500.0;
-            float radius = mix(1.35, 5.2, pow(depthFactor, 0.8)) * a_size;
-            gl_PointSize = max(1.4, radius * u_scale);
+            // Match the website's depth-based radius and its subtle per-star size range.
+            float radius = (1.0 - z / 1500.0) * a_size * 3.0;
+            gl_PointSize = max(1.0, radius * u_scale);
         }
         """;
 
@@ -126,17 +119,16 @@ public sealed class StarFieldControl : OpenGlControlBase
         for (var i = 0; i < StarCount; i++)
         {
             var angle = _random.NextDouble() * Math.PI * 2.0;
-            // Bias the distribution gently toward the center while retaining
-            // coverage all the way to the outer edge of the circular field.
-            var radialPosition = Math.Pow(_random.NextDouble(), 1.35);
+            // Uniform area distribution across the full disk, as on the website.
+            var radialPosition = Math.Sqrt(_random.NextDouble());
             var offset = i * 7;
 
             data[offset] = (float)(Math.Cos(angle) * radialPosition);
             data[offset + 1] = (float)(Math.Sin(angle) * radialPosition);
             data[offset + 2] = (float)(_random.NextDouble() * MaxDepth);
-            // A broad continuous per-star variation complements the depth-based
-            // sizing, producing distinct small, medium and large points.
-            data[offset + 3] = 0.78f + (float)_random.NextDouble() * 0.37f;
+            // Match the website: stars near the center are subtly larger,
+            // with a narrow continuous size range from 0.5 to 0.6.
+            data[offset + 3] = 0.5f + (float)(1.0 - radialPosition) * 0.1f;
 
             var color = StarColors[_random.Next(StarColors.Length)];
             data[offset + 4] = color.X;
