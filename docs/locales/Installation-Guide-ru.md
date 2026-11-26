@@ -22,7 +22,7 @@ description: "Способы установки Moonlight Tizen на телев�
 - **macOS Intel:** `MoonlightTizenInstaller-osx-x64`
 - **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64`
 
-Это автономные приложения: устанавливать .NET, Python, Tizen Studio или Apps2Samsung не нужно.
+Установщик — это автономный исполняемый файл, который уже содержит всё необходимое, включая само приложение TizenOS, которое переносится на телевизор.
 
 ### 2. Запустите установщик
 
