@@ -3,8 +3,7 @@ name: Build and publish Tizen build environment
 on:
   push:
     branches:
-      - 1.2.4-pre
-      - fix/smarthub-previews-1.2.4-pre
+      - master
     paths:
       - 'docker/tizen-build-env/**'
       - 'wmp/engine/build/fetch-tizen-sources.sh'

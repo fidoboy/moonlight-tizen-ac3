@@ -139,9 +139,7 @@ Users are responsible for carrying out the installation appropriately and config
 
 If you have questions or encounter a problem, you can use the project's [GitHub Issues](https://github.com/fidoboy/moonlight-tizen-ac3/issues/new/choose) to ask questions or report issues. Please consult the [Troubleshooting Guide](https://fidoboy.github.io/moonlight-tizen-ac3/Troubleshooting-Guide.html) and [Known Issues and Limitations](https://fidoboy.github.io/moonlight-tizen-ac3/Known-Issues-and-Limitations.html) before submitting a report.
 
-
 ---
-
 
 ## ⚖️ License
 
