@@ -11,7 +11,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCALIZATION = ROOT / "Installer/src/MoonlightTizenInstaller/InstallerLocalization.cs"
-PROJECT_SOURCE = ROOT / "Installer/src/MoonlightTizenInstaller"
+PROJECT_SOURCE = ROOT / "Installer/src"
 EXPECTED_LOCALES = 7
 NON_TRANSLATED_UI_LABELS = {
     "English (United States)", "Deutsch", "Español", "Français",
@@ -97,7 +97,8 @@ for key in missing:
 
 # A dictionary entry must still be referenced by the installer source/markup;
 # this catches stale keys left behind after UI copy is removed or renamed.
-unused = sorted(key for key in keys if key not in all_source)
+normalized_source = all_source.replace("{{", "{").replace("}}", "}")
+unused = sorted(key for key in keys if key not in normalized_source)
 for key in unused:
     errors.append(f"Unused translation key: {key!r}")
 
