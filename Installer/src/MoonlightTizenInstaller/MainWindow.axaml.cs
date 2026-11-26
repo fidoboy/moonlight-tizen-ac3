@@ -537,7 +537,7 @@ public sealed partial class MainWindow : Window
         };
         var useButton = new Button
         {
-            Content = "Sí, utilizar TV-Store",
+            Content = InstallerLocalization.T("Sí, utilizar TV-Store"),
             Width = 190,
             MinWidth = 190,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
@@ -545,7 +545,7 @@ public sealed partial class MainWindow : Window
         };
         var normalButton = new Button
         {
-            Content = "No",
+            Content = InstallerLocalization.T("No"),
             Width = 190,
             MinWidth = 190,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center
