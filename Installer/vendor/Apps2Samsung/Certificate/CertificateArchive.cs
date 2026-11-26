@@ -390,7 +390,7 @@ namespace Apps2Samsung.Certificate
                 if (string.IsNullOrEmpty(password))
                     throw new InvalidOperationException("The profile password is not available in the OS credential vault or archive.");
 #pragma warning disable SYSLIB0057 // matches the loader used elsewhere; legacy PKCS#12 support
-                using var cert = new X509Certificate2(author, password, PlatformService.SigningCertificateFlags);
+                using var cert = X509CertificateLoader.LoadPkcs12(author, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057
                 subject = cert.Subject;
                 notBefore = cert.NotBefore.ToUniversalTime();
@@ -410,7 +410,7 @@ namespace Apps2Samsung.Certificate
             try
             {
 #pragma warning disable SYSLIB0057
-                using var dist = new X509Certificate2(distributor, password, PlatformService.SigningCertificateFlags);
+                using var dist = X509CertificateLoader.LoadPkcs12(distributor, password, PlatformService.SigningCertificateFlags);
 #pragma warning restore SYSLIB0057
                 var mail = dist.GetNameInfo(X509NameType.EmailName, forIssuer: false);
                 email = string.IsNullOrWhiteSpace(mail) ? null : mail;
