@@ -1029,7 +1029,7 @@ public sealed partial class MainWindow : Window
                 _signedPackagePathForRetry = signedPackagePath;
                 _signedPackageDirectoryForRetry = temporaryDirectory;
                 ShowInstallationResult(false,
-                    InstallerLocalization.T("Tizen rejected the installation because the author certificate does not match the certificate used by the installed version of Moonlight. The installed version must be removed before this signed package can be installed."));
+                    InstallerLocalization.T("Tizen rejected the installation because the certificate of the currently installed version does not match the certificate of the version you are trying to install. The installed version must be removed before this signed package can be installed."));
                 if (this.FindControl<TextBlock>("InstallationRetryInstructions") is { } retryInstructions)
                 {
                     retryInstructions.Text = InstallerLocalization.T("If you want to uninstall the current version and try again, click “Uninstall & retry”.");
