@@ -80,6 +80,21 @@ for call in re.finditer(r'InstallerLocalization\.T\((.*?)\)', all_source, re.S):
     for literal in re.findall(r'"((?:\\.|[^"\\])*)"', call.group(1)):
         expected.add(unescape_csharp(literal).replace("{{", "{").replace("}}", "}"))
 
+# Progress strings emitted by the Core services are also displayed to users.
+# Normalize interpolated expressions to numbered placeholders and mirror the
+# UI's removal of percentage values and internal SDB terminology.
+for report in re.finditer(r'progress\?\.Report\(\s*\$?"((?:\\.|[^"\\])*)"\s*\)', all_source):
+    message = unescape_csharp(report.group(1)).replace("SDB", "conexión")
+    placeholder_index = 0
+    def replace_expression(_match: re.Match[str]) -> str:
+        nonlocal_placeholder = replace_expression.counter
+        replace_expression.counter += 1
+        return "{" + str(nonlocal_placeholder) + "}"
+    replace_expression.counter = 0
+    message = re.sub(r"\{[^{}]+\}", replace_expression, message)
+    message = re.sub(r"\s*\{\d+\}\s*%", "", message).strip()
+    expected.add(message)
+
 # Static UI labels in Avalonia markup must be translatable, except native
 # language names and numeric wizard indicators.
 for path, text in source_text.items():
