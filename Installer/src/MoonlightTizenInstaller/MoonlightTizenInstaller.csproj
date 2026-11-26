@@ -18,6 +18,7 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.0" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.0" />
     <AvaloniaResource Include="Assets/moonlight-logo.png" />
+    <AvaloniaResource Include="Assets/moonlight.ico" />
     <EmbeddedResource Include="Moonlight.wgt" Condition="Exists('Moonlight.wgt')">
       <LogicalName>Moonlight.wgt</LogicalName>
     </EmbeddedResource>
