@@ -27,6 +27,9 @@
       <Setter Property="BorderBrush" Value="#C1E1FF" />
       <Setter Property="Foreground" Value="#F5F8FF" />
     </Style>
+    <Style Selector="Button.primary Path.retry-icon">
+      <Setter Property="Stroke" Value="#071224" />
+    </Style>
     <Style Selector="Button.primary:pointerover Path.retry-icon">
       <Setter Property="Stroke" Value="#F5F8FF" />
     </Style>
