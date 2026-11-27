@@ -1035,8 +1035,11 @@ public sealed partial class MainWindow : Window
                 }),
                 forceRegenerate: forceRegenerate);
 
-            if (status is not null)
-                status.Text = InstallerLocalization.T("The certificate has been generated and saved.");
+            // The new profile is now saved. Switch from the regeneration/preparation
+            // state to the same ready-certificate state used for an existing profile.
+            _certificatePreparationSelected = false;
+            _existingCertificateKept = false;
+            SetTelevisionActionsEnabled(TizenDuid.IsValid(_selectedDuid));
         }
         catch (OperationCanceledException)
         {
