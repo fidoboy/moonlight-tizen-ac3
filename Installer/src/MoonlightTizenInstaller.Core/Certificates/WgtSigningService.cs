@@ -36,7 +36,7 @@ public sealed class WgtSigningService
             throw new CertificateNotYetValidException(validity);
 
         cancellationToken.ThrowIfCancellationRequested();
-        progress?.Report("Firmando el WGT…");
+        progress?.Report("Signing the WGT…");
 
         var stagingDirectory = Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller", "signing", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(stagingDirectory);
@@ -65,7 +65,7 @@ public sealed class WgtSigningService
                 Directory.CreateDirectory(outputDirectory);
 
             File.Copy(stagedPath, outputFullPath, overwrite: true);
-            progress?.Report("WGT firmado correctamente.");
+            progress?.Report("WGT signed successfully.");
             return outputFullPath;
         }
         finally
