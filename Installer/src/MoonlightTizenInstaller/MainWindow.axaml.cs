@@ -180,7 +180,8 @@ public sealed partial class MainWindow : Window
                     1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
                     2 => !_televisionDiscoveryFailed,
                     3 => _selectedTelevision is { IsDeveloperModeIpValid: true } && !_tvStoreHandoff,
-                    4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
+                    4 => TizenDuid.IsValid(_selectedDuid) && (_certificates.IsReadyForTelevision(_selectedDuid!) ||
+                        (!_certificatePreparationSelected && !string.IsNullOrWhiteSpace(_certificates.GetStoredAuthorCertificateName()))),
                     _ => _installationFinished
                 }));
         }
@@ -842,19 +843,20 @@ public sealed partial class MainWindow : Window
         var certificateReady = hasDuid && _certificates.IsReadyForTelevision(_selectedDuid!);
         var storedName = hasDuid ? _certificates.GetStoredAuthorCertificateName() : null;
         var hasStoredCertificate = !string.IsNullOrWhiteSpace(storedName) && !_certificatePreparationSelected;
+        var canInstall = certificateReady || hasStoredCertificate;
         var showPreparation = hasDuid && !hasStoredCertificate;
 
         if (this.FindControl<Button>("GenerateCertificateButton") is { } generate)
             generate.IsEnabled = showPreparation && !_discoveryInProgress;
         if (this.FindControl<Button>("InstallWgtButton") is { } install)
-            install.IsEnabled = certificateReady && !_discoveryInProgress;
+            install.IsEnabled = canInstall && !_discoveryInProgress;
 
         if (this.FindControl<Border>("CertificateNormalPanel") is { } normalPanel)
             normalPanel.IsVisible = showPreparation;
         if (this.FindControl<Border>("CertificateReadyPanel") is { } readyPanel)
             readyPanel.IsVisible = hasDuid && hasStoredCertificate;
         if (this.FindControl<StackPanel>("CertificateReadyIntro") is { } readyIntro)
-            readyIntro.IsVisible = certificateReady;
+            readyIntro.IsVisible = canInstall;
         if (this.FindControl<TextBlock>("CertificatePageTitle") is { } certificateTitle)
             certificateTitle.Text = InstallerLocalization.T(hasStoredCertificate
                 ? "Installation certificate"
