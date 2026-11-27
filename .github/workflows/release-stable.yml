@@ -170,9 +170,9 @@ jobs:
             printf '| Platform | Download |\n'
             printf '|---|---|\n'
             printf '| Windows (x64) | [MoonlightTizenInstaller.exe](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.exe) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
-            printf '| Linux (x64) | [MoonlightTizenInstaller](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
-            printf '| macOS (Intel) | [MoonlightTizenInstaller-osx-x64](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-x64) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
-            printf '| macOS (Apple Silicon) | [MoonlightTizenInstaller-osx-arm64](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-arm64) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| Linux (x64) | [MoonlightTizenInstaller-linux-x64.tar.gz](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-linux-x64.tar.gz) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| macOS (Intel) | [MoonlightTizenInstaller-osx-x64.zip](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-x64.zip) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| macOS (Apple Silicon) | [MoonlightTizenInstaller-osx-arm64.zip](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-arm64.zip) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
 
             printf '\n\n---\n\n<details>\n<summary>⚙️ Changelog details for v%s</summary>\n\n' "$RELEASE_VERSION"
             cat "$VERSIONED_ENTRY"
