@@ -330,6 +330,13 @@
               </StackPanel>
             </Grid>
           </Border>
+        </StackPanel>
+
+        <StackPanel Name="InstallationPage" Spacing="14" IsVisible="False">
+          <TextBlock Text="PASO 5 · INSTALACIÓN" Foreground="#A7D3FF" FontSize="12"
+                     FontWeight="Bold" />
+          <TextBlock Name="InstallationStepLabel" Text="PASO 5 · RESULTADO" Foreground="#A7D3FF" FontSize="12" FontWeight="Bold" IsVisible="False" />
+          <TextBlock Name="InstallationPageTitle" Text="Instalar Moonlight" FontSize="28" FontWeight="Bold" />
           <Grid Name="TvStoreResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
                 IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
             <Border Name="TvStoreResultIconCircle" Width="76" Height="76" CornerRadius="38"
@@ -349,12 +356,6 @@
                          FontSize="15" />
             </StackPanel>
           </Grid>
-        </StackPanel>
-
-        <StackPanel Name="InstallationPage" Spacing="14" IsVisible="False">
-          <TextBlock Text="PASO 5 · INSTALACIÓN" Foreground="#A7D3FF" FontSize="12"
-                     FontWeight="Bold" />
-          <TextBlock Name="InstallationPageTitle" Text="Instalar Moonlight" FontSize="28" FontWeight="Bold" />
           <StackPanel Name="InstallationProgressPanel" Spacing="14">
             <TextBlock Text="Se está preparando y transfiriendo Moonlight al televisor. Este proceso puede tardar unos instantes."
                        Foreground="#ACBAD0" TextWrapping="Wrap" />
