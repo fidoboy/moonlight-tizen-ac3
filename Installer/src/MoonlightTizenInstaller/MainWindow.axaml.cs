@@ -88,8 +88,7 @@ public sealed partial class MainWindow : Window
             _brandBitmap = new Bitmap(logoStream);
         if (this.FindControl<Image>("MoonlightBrandLogo") is { } logo)
             logo.Source = _brandBitmap;
-        using (var iconStream = AssetLoader.Open(new Uri("avares://MoonlightTizenInstaller/Assets/moonlight-logo.png")))
-            _windowIcon = Icon = new WindowIcon(iconStream);
+        _windowIcon = Icon = new WindowIcon(_brandBitmap!);
 
         if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
             finishButton.Click += OnFinishTvStoreHandoffClick;
