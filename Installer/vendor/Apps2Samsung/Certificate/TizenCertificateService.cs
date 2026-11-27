@@ -181,7 +181,7 @@ namespace Apps2Samsung.Services
         {
             var subject = new X509Name(
                 new ArrayList { X509Name.C, X509Name.ST, X509Name.L, X509Name.O, X509Name.OU, X509Name.CN },
-                new ArrayList { "", "", "", "", "", "Jelly2Sams" });
+                new ArrayList { "", "", "", "", "", CertificateProvisioningService.ProfileBaseName });
             var csr = new Pkcs10CertificationRequest("SHA256withRSA", subject, keyPair.Public, null, keyPair.Private);
 
             using var ms = new MemoryStream();
