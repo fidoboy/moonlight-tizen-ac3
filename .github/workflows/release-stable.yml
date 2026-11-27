@@ -770,7 +770,7 @@ jobs:
           desktop="$test_home/.local/share/applications/MoonlightTizenInstaller.desktop"
           test -s "$desktop"
           desktop-file-validate "$desktop"
-          grep -Fq "Exec=\\"$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller\\"" "$desktop"
+          grep -Fq "Exec=\"$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller\"" "$desktop"
 
       - name: Prepare macOS application bundle
         if: startsWith(matrix.rid, 'osx-')
