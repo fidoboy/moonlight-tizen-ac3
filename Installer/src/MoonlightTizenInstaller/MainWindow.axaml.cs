@@ -41,6 +41,7 @@ public sealed partial class MainWindow : Window
     private string? _signedPackageDirectoryForRetry;
     private bool _manualLanguageSelected;
     private bool _certificatePreparationSelected;
+    private bool _existingCertificateKept;
     private int _wizardStep = 1;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
@@ -181,7 +182,7 @@ public sealed partial class MainWindow : Window
                     2 => !_televisionDiscoveryFailed,
                     3 => _selectedTelevision is { IsDeveloperModeIpValid: true } && !_tvStoreHandoff,
                     4 => TizenDuid.IsValid(_selectedDuid) && (_certificates.IsReadyForTelevision(_selectedDuid!) ||
-                        (!_certificatePreparationSelected && !string.IsNullOrWhiteSpace(_certificates.GetStoredAuthorCertificateName()))),
+                        (_existingCertificateKept && !string.IsNullOrWhiteSpace(_certificates.GetStoredAuthorCertificateName()))),
                     _ => _installationFinished
                 }));
         }
@@ -592,6 +593,7 @@ public sealed partial class MainWindow : Window
         _selectedTelevision = device;
         _selectedDuid = null;
         _certificatePreparationSelected = false;
+        _existingCertificateKept = false;
         _tvStoreHandoff = false;
         if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
@@ -629,6 +631,7 @@ public sealed partial class MainWindow : Window
                     !string.Equals(storedName, CertificateProvisioningService.ProfileBaseName, StringComparison.OrdinalIgnoreCase))
                 {
                     _certificatePreparationSelected = await ConfirmCertificateRegenerationAsync(storedName);
+                    _existingCertificateKept = !_certificatePreparationSelected;
                     SetTelevisionActionsEnabled(true);
                 }
             }
@@ -843,7 +846,7 @@ public sealed partial class MainWindow : Window
         var certificateReady = hasDuid && _certificates.IsReadyForTelevision(_selectedDuid!);
         var storedName = hasDuid ? _certificates.GetStoredAuthorCertificateName() : null;
         var hasStoredCertificate = !string.IsNullOrWhiteSpace(storedName) && !_certificatePreparationSelected;
-        var canInstall = certificateReady || hasStoredCertificate;
+        var canInstall = certificateReady || (_existingCertificateKept && hasStoredCertificate);
         var showPreparation = hasDuid && !hasStoredCertificate;
 
         if (this.FindControl<Button>("GenerateCertificateButton") is { } generate)
