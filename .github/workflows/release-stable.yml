@@ -769,8 +769,8 @@ jobs:
           mkdir -p dist
           cp release-inputs/Moonlight.wgt dist/Moonlight.wgt
           cp release-inputs/Moonlight-ForceGM.wgt dist/Moonlight-ForceGM.wgt
-          cp installer-win-x64/MoonlightTizenInstaller.exe dist/MoonlightTizenInstaller-win-x64.exe
-          cp installer-linux-x64/MoonlightTizenInstaller dist/MoonlightTizenInstaller-linux-x64
+          cp installer-win-x64/MoonlightTizenInstaller.exe dist/MoonlightTizenInstaller.exe
+          cp installer-linux-x64/MoonlightTizenInstaller dist/MoonlightTizenInstaller
           cp installer-osx-x64/MoonlightTizenInstaller dist/MoonlightTizenInstaller-osx-x64
           cp installer-osx-arm64/MoonlightTizenInstaller dist/MoonlightTizenInstaller-osx-arm64
           cp release-inputs/release-notes.md "$RUNNER_TEMP/release-notes.md"
@@ -794,8 +794,8 @@ jobs:
           files: |
             dist/Moonlight.wgt
             dist/Moonlight-ForceGM.wgt
-            dist/MoonlightTizenInstaller-win-x64.exe
-            dist/MoonlightTizenInstaller-linux-x64
+            dist/MoonlightTizenInstaller.exe
+            dist/MoonlightTizenInstaller
             dist/MoonlightTizenInstaller-osx-x64
             dist/MoonlightTizenInstaller-osx-arm64
           body_path: ${{ runner.temp }}/release-notes.md
