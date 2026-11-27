@@ -19,7 +19,13 @@ public partial class ResultStatusIcon : UserControl
     {
         InitializeComponent();
         UpdateAppearance(IsSuccess);
-        this.GetObservable(IsSuccessProperty).Subscribe(UpdateAppearance);
+    }
+
+    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
+    {
+        base.OnPropertyChanged(change);
+        if (change.Property == IsSuccessProperty)
+            UpdateAppearance(change.GetNewValue<bool>());
     }
 
     private void UpdateAppearance(bool success)
