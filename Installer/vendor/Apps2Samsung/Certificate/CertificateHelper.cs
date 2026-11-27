@@ -92,8 +92,8 @@ namespace Apps2Samsung.Helpers.Tizen.Certificate
 
                     if (cert.NotAfter.Date >= DateTime.Today)
                     {
-                        // Display the profile FOLDER name (e.g. "Jelly2Sams - Partner") rather than the
-                        // author cert's CN — the CN is "Jelly2Sams" for every generated cert, so it
+                        // Display the profile FOLDER name (e.g. "Moonlight - Partner") rather than the
+                        // author cert's CN — the CN is "Moonlight" for every newly generated cert, so it
                         // can't distinguish the Public vs Partner profiles. Fall back to the CN if the
                         // folder name is somehow empty.
                         var name = Path.GetFileName(directory);
