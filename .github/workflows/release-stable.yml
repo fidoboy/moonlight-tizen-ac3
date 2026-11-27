@@ -165,7 +165,7 @@ jobs:
             printf '## 🔥 Highlights\n\n'
             tail -n +2 .github/release-notes.md
 
-            printf '\n\n---\n\n&#x20;\n\n## Download the installer\n\n'
+            printf '\n\n---\n\n## Download the installer\n\n'
             printf 'These standalone executables install Moonlight Tizen on your Samsung TV. Each one includes everything you need, including the app packages, so there’s no need to install additional components or dependencies. Once the installation on the TV is complete, the installation wizard can be deleted and will leave no traces behind, except for the certificate itself, which is created for future installations. Download the version that matches the operating system and processor architecture of the computer you’ll be using:\n\n'
             printf '| Platform | Download |\n'
             printf '|---|---|\n'
