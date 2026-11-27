@@ -1,0 +1,295 @@
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
+using Apps2Samsung.Extensions;
+using Apps2Samsung.Helpers.Core;
+using Apps2Samsung.Helpers.Tizen.Certificate;
+using Apps2Samsung.Interfaces;
+using Apps2Samsung.Models;
+
+namespace Apps2Samsung.Certificate
+{
+    /// <summary>A signing profile ensured for an install.</summary>
+    public sealed record CertificateProfile(
+        string AuthorP12,
+        string DistributorP12,
+        string Password,
+        string ProfileDir,
+        string ProfileName,
+        CertificatePrivilegeLevel Level);
+
+    /// <summary>
+    /// Provisions and — crucially — <b>reuses</b> Samsung signing profiles, shared by both heads.
+    /// Reuse rules (previously desktop-only, which is why the mobile head regenerated a cert on every
+    /// install):
+    /// <list type="bullet">
+    /// <item>A valid author cert whose distributor already covers the TV's DUID (and any manual DUIDs)
+    /// is reused with <b>no Samsung login</b>.</item>
+    /// <item>If the author exists but the DUID isn't covered, only the distributor is regenerated
+    /// (author keypair kept, so already-installed apps stay overwritable).</item>
+    /// <item>Otherwise a full profile is minted.</item>
+    /// </list>
+    /// Public and Partner live in separate <c>"Jelly2Sams - Public/Partner"</c> folders so switching
+    /// level never clobbers the other. A Samsung login (<see cref="ISamsungLoginService"/>) is only
+    /// triggered when a regenerate/full-profile is actually needed.
+    /// </summary>
+    public sealed class CertificateProvisioningService
+    {
+        public const string ProfileBaseName = "Jelly2Sams";
+        private const string AuthorFileName = "author.p12";
+        private const string DistributorFileName = "distributor.p12";
+        private const int MaxDistributorDuids = 10;
+
+        private readonly ITizenCertificateService _certService;
+        private readonly ISamsungLoginService _login;
+
+        public CertificateProvisioningService(ITizenCertificateService certService, ISamsungLoginService login)
+        {
+            _certService = certService;
+            _login = login;
+        }
+
+        /// <summary>The profile folder name for a level, e.g. "Jelly2Sams - Partner".</summary>
+        public static string ProfileName(CertificatePrivilegeLevel level) =>
+            $"{ProfileBaseName} - {(level == CertificatePrivilegeLevel.Partner ? "Partner" : "Public")}";
+
+        /// <summary>
+        /// Ensure a signing profile for <paramref name="level"/> that covers <paramref name="deviceDuid"/>
+        /// (+ <paramref name="manualDuids"/>), reusing an existing one when possible. Only performs a
+        /// Samsung login when a full profile or a distributor regen is required.
+        /// </summary>
+        /// <param name="storePath">Root dir holding the level profiles (e.g. IAppConfig.CertificateStorePath).</param>
+        /// <param name="caPath">Dir containing the Samsung CA files.</param>
+        /// <param name="onLoginStarting">Invoked right before a Samsung login is triggered (heads use it
+        /// to switch UI); not called on the silent-reuse path.</param>
+        /// <param name="beforeLoginAsync">Awaited before <paramref name="onLoginStarting"/>, with the
+        /// level about to be created: the heads show the certificate sheet here and return once the
+        /// user chose Sign in. Throwing (e.g. OperationCanceledException on Cancel) stops before any
+        /// login. Not called on the silent-reuse path either.</param>
+        public async Task<CertificateProfile> EnsureAsync(
+            string deviceDuid,
+            CertificatePrivilegeLevel level,
+            string storePath,
+            string caPath,
+            IEnumerable<string>? manualDuids = null,
+            bool forceLogin = false,
+            Action? onLoginStarting = null,
+            ProgressCallback? progress = null,
+            Func<CertificatePrivilegeLevel, CancellationToken, Task>? beforeLoginAsync = null,
+            CancellationToken ct = default)
+        {
+            if (!TizenDuid.IsValid(deviceDuid))
+                throw new ArgumentException("A valid TV DUID is required.", nameof(deviceDuid));
+
+            var profileName = ProfileName(level);
+            var profileDir = Path.Combine(storePath, profileName);
+
+            var manual = (manualDuids ?? Enumerable.Empty<string>())
+                .Where(TizenDuid.IsValid)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            (bool HasAuthor, HashSet<string> Covered, bool NeedsFullProfile, bool NeedsDistributorOnly) Assess()
+            {
+                bool hasAuthor = HasUsableAuthorCert(profileDir);
+                bool hasDistributor = HasUsableDistributorCert(profileDir);
+                var covered = hasAuthor
+                    ? GetCoveredDuids(profileDir)
+                    : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                bool duidsCovered = covered.Contains(deviceDuid) && manual.All(covered.Contains);
+
+                bool needsFullProfile = forceLogin || !hasAuthor;
+                bool needsDistributorOnly = !needsFullProfile && (!hasDistributor || !duidsCovered);
+                return (hasAuthor, covered, needsFullProfile, needsDistributorOnly);
+            }
+
+            CertificateProfile Reuse()
+            {
+                var pw = CertificateSecrets.GetOrMigrate(profileDir) ?? throw new InvalidOperationException("The certificate profile has no password in the OS credential vault.");
+                return new CertificateProfile(
+                    Path.Combine(profileDir, AuthorFileName),
+                    Path.Combine(profileDir, DistributorFileName),
+                    pw, profileDir, profileName, level);
+            }
+
+            var (_, covered, needsFullProfile, needsDistributorOnly) = Assess();
+
+            // ---- Silent reuse: valid author + DUID already covered ----
+            if (!needsFullProfile && !needsDistributorOnly)
+                return Reuse();
+
+            // ---- A Samsung login is required ----
+            if (beforeLoginAsync is not null)
+            {
+                await beforeLoginAsync(level, ct);
+
+                // The sheet can also end with a certificate imported from another device (#921):
+                // look at the store again. Covers this TV: no sign-in at all. Author only: keep it
+                // and sign in for the distributor, which is the whole point of carrying it over.
+                (_, covered, needsFullProfile, needsDistributorOnly) = Assess();
+                if (!needsFullProfile && !needsDistributorOnly)
+                    return Reuse();
+            }
+            onLoginStarting?.Invoke();
+            var auth = await _login.LoginAsync(ct);
+            if (string.IsNullOrEmpty(auth.access_token))
+                throw new InvalidOperationException("Failed to authenticate with the Samsung account.");
+
+            // The distributor CSR puts this address in the subject's emailAddress field. A Samsung
+            // account without one hands us null, which blows up inside BouncyCastle's X509Name as a
+            // bare "Object reference not set to an instance of an object" (issue #606) — so stop here
+            // and let the head tell the user to add and verify an address.
+            if (string.IsNullOrWhiteSpace(auth.inputEmailID))
+                throw new SamsungAccountEmailMissingException();
+
+            var duids = BuildDistributorDuids(deviceDuid, manual, covered);
+
+            string authorP12, distributorP12, password;
+            if (needsFullProfile)
+            {
+                (authorP12, distributorP12, password) = await _certService.GenerateProfileAsync(
+                    duids, auth.access_token, auth.userId, auth.inputEmailID, profileDir, caPath, level, progress);
+                CertificateSecrets.SetForDirectory(profileDir, password);
+            }
+            else
+            {
+                // Reuse the author keypair; only the distributor cert is regenerated.
+                distributorP12 = await _certService.RegenerateDistributorAsync(
+                    profileDir, duids, auth.access_token, auth.userId, auth.inputEmailID, caPath, level, progress);
+                authorP12 = Path.Combine(profileDir, AuthorFileName);
+                password = CertificateSecrets.GetOrMigrate(profileDir) ?? throw new InvalidOperationException("The certificate profile has no password in the OS credential vault.");
+            }
+
+            // A new or renewed certificate is saved outside the app right away (#1068).
+            CertificateBackups.Changed();
+            return new CertificateProfile(authorP12, distributorP12, password, profileDir, profileName, level);
+        }
+
+        /// <summary>
+        /// True when a usable profile for <paramref name="level"/> already exists in the store — i.e.
+        /// the user "already has" that certificate, so nothing has to be minted for it. Used by the
+        /// heads to decide whether requiring Partner means creating a new certificate.
+        /// </summary>
+        public static bool HasProfile(string storePath, CertificatePrivilegeLevel level) =>
+            HasUsableAuthorCert(Path.Combine(storePath, ProfileName(level)));
+
+        /// <summary>True if the profile dir has a loadable, unexpired author cert.</summary>
+        public static bool HasUsableAuthorCert(string certDir)
+        {
+            try
+            {
+                var authorP12 = Path.Combine(certDir, AuthorFileName);
+                if (!File.Exists(authorP12))
+                    return false;
+                var password = CertificateSecrets.GetOrMigrate(certDir);
+                if (string.IsNullOrEmpty(password))
+                    return false;
+#pragma warning disable SYSLIB0057 // matches the proven loader used elsewhere; legacy PKCS#12 support
+                using var cert = X509CertificateLoader.LoadPkcs12FromFile(authorP12, password, PlatformService.SigningCertificateFlags);
+#pragma warning restore SYSLIB0057
+                var now = DateTime.UtcNow;
+                return cert.NotBefore.ToUniversalTime() <= now && cert.NotAfter.ToUniversalTime() >= now;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"[Cert] Author cert check failed for '{certDir}': {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>True when the distributor PKCS#12 exists, can be opened and is currently valid.</summary>
+        public static bool HasUsableDistributorCert(string certDir)
+        {
+            try
+            {
+                var distributorP12 = Path.Combine(certDir, DistributorFileName);
+                if (!File.Exists(distributorP12))
+                    return false;
+                var password = CertificateSecrets.GetOrMigrate(certDir);
+                if (string.IsNullOrEmpty(password))
+                    return false;
+#pragma warning disable SYSLIB0057
+                using var cert = X509CertificateLoader.LoadPkcs12FromFile(distributorP12, password, PlatformService.SigningCertificateFlags);
+#pragma warning restore SYSLIB0057
+                var now = DateTime.UtcNow;
+                return cert.NotBefore.ToUniversalTime() <= now &&
+                       cert.NotAfter.ToUniversalTime() >= now;
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"[Cert] Distributor cert check failed for '{certDir}': {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// When the author certificate in <paramref name="certDir"/> expires (local date), or null
+        /// when there is none that loads: Settings' line on what is there (#988).
+        /// </summary>
+        public static DateTime? AuthorValidUntil(string certDir)
+        {
+            try
+            {
+                var authorP12 = Path.Combine(certDir, AuthorFileName);
+                if (!File.Exists(authorP12))
+                    return null;
+                var password = CertificateSecrets.GetOrMigrate(certDir);
+                if (string.IsNullOrEmpty(password))
+                    return null;
+#pragma warning disable SYSLIB0057
+                using var cert = X509CertificateLoader.LoadPkcs12FromFile(authorP12, password, PlatformService.SigningCertificateFlags);
+#pragma warning restore SYSLIB0057
+                return cert.NotAfter.ToLocalTime();
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"[Cert] Author cert validity read failed for '{certDir}': {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>DUIDs already covered by the distributor cert in <paramref name="certDir"/>.</summary>
+        public static HashSet<string> GetCoveredDuids(string certDir)
+        {
+            try
+            {
+                var password = CertificateSecrets.GetOrMigrate(certDir);
+                if (string.IsNullOrEmpty(password))
+                    return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                var distributor = Path.Combine(certDir, DistributorFileName);
+                return new CertificateHelper().GetCertificateDuids(distributor, password);
+            }
+            catch (Exception ex)
+            {
+                Trace.WriteLine($"[Cert] Could not read covered DUIDs from '{certDir}': {ex.Message}");
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+        }
+
+        /// <summary>The DUID set a (re)generated distributor cert should cover: this TV first, then
+        /// manual entries, then already-covered ones — capped at Samsung's per-cert limit.</summary>
+        public static IReadOnlyCollection<string> BuildDistributorDuids(
+            string currentDuid, IEnumerable<string> manual, IEnumerable<string> covered)
+        {
+            var ordered = new List<string>();
+            void Add(string d)
+            {
+                if (TizenDuid.IsValid(d) && !ordered.Contains(d.Trim(), StringComparer.OrdinalIgnoreCase))
+                    ordered.Add(d.Trim());
+            }
+
+            Add(currentDuid);
+            foreach (var d in manual) Add(d);
+            foreach (var d in covered) Add(d);
+
+            return ordered.Count > MaxDistributorDuids
+                ? ordered.Take(MaxDistributorDuids).ToList()
+                : ordered;
+        }
+    }
+}

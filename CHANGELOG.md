@@ -3,6 +3,15 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.3.2
+
+### Added
+- **Standalone desktop installer:** Added self-contained installers for Windows (x64), Linux (x64), macOS (Intel), and macOS (Apple Silicon). Each installer bundles the required components, including the Moonlight Tizen app, and transfers the app to the TV, so users do not need to install .NET, Python, Tizen Studio or Apps2Samsung.
+
+### Changed
+- Minor cosmetic interface changes.
+- **Early WASM/EMSS compatibility detection:** Added early compatibility checks as groundwork for planned Tizen 5.0 backward compatibility, which aims to expand the supported device range below the current Tizen 5.5 baseline.
+
 ## v1.3.1
 
 ### Added

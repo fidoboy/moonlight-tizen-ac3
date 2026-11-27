@@ -64,6 +64,7 @@ RUN apt-get update \
 # Tizen 5.5 ARM sysroot and framework headers/libraries under one stable path.
 COPY wmp/engine/build/fetch-tizen-sources.sh /opt/wmp-build/fetch-tizen-sources.sh
 COPY wmp/engine/build/build-static-crypto.sh /opt/wmp-build/build-static-crypto.sh
+COPY docker/tizen-build-env/fetch-samsung-cas.py /opt/tizen-build/fetch-samsung-cas.py
 RUN chmod 0755 /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-build/build-static-crypto.sh \
     && /opt/wmp-build/fetch-tizen-sources.sh /opt/wmp-tizen-deps \
     && mkdir -p /opt/wmp-backport-deps \
@@ -102,9 +103,33 @@ RUN installer=/tmp/tizen-web-cli.bin \
     && test -n "$pm" \
     && "$pm" extra --list | tee /tmp/tizen-extra-repositories.txt \
     && grep -Fq "Samsung Tizen TV SDK" /tmp/tizen-extra-repositories.txt \
+    && grep -Fq "Samsung Certificate Extension" /tmp/tizen-extra-repositories.txt \
+    && certificate_extension_index="$(awk '/^[[:space:]]*Index[[:space:]]*:/ { repo_index=$3 } /^[[:space:]]*Name[[:space:]]*:[[:space:]]*Samsung Certificate Extension[[:space:]]*$/ { print repo_index; exit }' /tmp/tizen-extra-repositories.txt)" \
+    && test -n "$certificate_extension_index" \
+    && "$pm" extra -act "$certificate_extension_index" \
     && "$pm" install --accept-license --no-java-check \
         "TIZEN-9.0-WebAppDevelopment-CLI,TIZEN-10.0-WebAppDevelopment-CLI,TV-SAMSUNG-Public-WebAppDevelopment,TV-SAMSUNG-Extension-Tools,TV-SAMSUNG-Extension-Resources" \
+    && "$pm" install --accept-license --no-java-check "cert-add-on" \
     && "$pm" show-pkgs --tree | tee /tmp/tizen-installed-packages.txt \
+    && if ! awk '$1 == "i" && $2 == "cert-add-on" { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt; then \
+         echo "Samsung Certificate Extension package (cert-add-on) is not installed" >&2; exit 1; \
+       fi \
+    && mkdir -p /home/tizen/certificate-authorities \
+    && if ! python3 /opt/tizen-build/fetch-samsung-cas.py /home/tizen/certificate-authorities; then \
+         echo "WARNING: Samsung CA retrieval did not complete; continuing with the build environment." >&2; \
+       fi \
+    && for ca in vd_tizen_dev_author_ca.cer vd_tizen_dev_partner2.crt; do \
+         if [ -s "/home/tizen/certificate-authorities/$ca" ]; then \
+           if ! openssl x509 -in "/home/tizen/certificate-authorities/$ca" -inform DER -noout -subject >/dev/null 2>&1 \
+              && ! openssl x509 -in "/home/tizen/certificate-authorities/$ca" -inform PEM -noout -subject >/dev/null 2>&1; then \
+             echo "WARNING: Invalid optional Samsung CA certificate: $ca" >&2; \
+             rm -f "/home/tizen/certificate-authorities/$ca"; \
+           fi; \
+         else \
+           echo "INFO: Optional Samsung CA not available in build image: $ca" >&2; \
+         fi; \
+       done \
+    && ls -la /home/tizen/certificate-authorities \
     && for package in TIZEN-9.0-WebAppDevelopment-CLI TIZEN-10.0-WebAppDevelopment-CLI TV-SAMSUNG-Public-WebAppDevelopment TV-SAMSUNG-Extension-Tools TV-SAMSUNG-Extension-Resources; do \
          awk -v package="$package" '$1 == "i" && $2 == package { found=1 } END { exit !found }' /tmp/tizen-installed-packages.txt \
          || { echo "Required Tizen package missing: $package" >&2; exit 1; }; \

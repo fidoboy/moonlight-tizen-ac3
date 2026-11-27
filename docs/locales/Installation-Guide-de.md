@@ -7,9 +7,60 @@ description: "Methoden zur Installation von Moonlight Tizen auf Samsung Smart TV
 
 # Installationsanleitung
 
-Der Client wird als signiertes Tizen-Widget (`.wgt`) bereitgestellt. Wähle eine Installationsmethode passend zu Fernseher, Computer und installierten Samsung-Entwicklungswerkzeugen.
+Die einfachste und empfehlenswerteste Möglichkeit ist, den Desktop-Installer zu verwenden, um Moonlight auf den Fernseher zu übertragen. Alternativ kannst du die Apps2Samsung-App oder, wenn du fortgeschrittene Kenntnisse hast, die Entwicklungsplattform Tizen Studio verwenden. Die App wird außerdem als unsignierte WGT-Pakete bereitgestellt, kann in diesem Format jedoch nicht direkt auf dem Fernseher installiert werden.
 
-## Methode A: Installation mit Apps2Samsung
+## Methode A: Moonlight-Desktop-Installer verwenden
+
+Empfohlen wird der **Moonlight Tizen Installer**. Führe ihn auf einem Windows-, Linux- oder macOS-Computer im selben lokalen Netzwerk wie der Fernseher aus. Er erkennt kompatible Samsung-Fernseher, führt durch die Installation und bereitet das Paket automatisch vor.
+
+### 1. Passenden Installer herunterladen
+
+Öffne die [aktuelle stabile Version](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) und lade unter **Assets** die passende Datei herunter:
+
+- **Windows 64-Bit:** `MoonlightTizenInstaller-win-x64.exe`
+- **Linux 64-Bit:** `MoonlightTizenInstaller-linux-x64`
+- **macOS Intel:** `MoonlightTizenInstaller-osx-x64`
+- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64`
+
+Der Installer ist eine eigenständige ausführbare Datei, die bereits alles Notwendige enthält, einschließlich der TizenOS-App selbst, die auf deinen Fernseher übertragen wird.
+
+### 2. Installer starten
+
+- **Windows:** Doppelklicke auf die `.exe`. Falls Microsoft Defender SmartScreen warnt, prüfe vor dem Start, ob die Datei aus dem offiziellen Release dieses Projekts stammt.
+- **macOS:** Öffne in Finder **Downloads**, klicke mit gedrückter Ctrl-Taste (oder rechts) auf die Datei und wähle **Öffnen**. Bestätige die Rückfrage. Wurde die App blockiert, gehe zu **Systemeinstellungen → Datenschutz & Sicherheit**, suche den Hinweis und wähle **Dennoch öffnen**. Verwende Intel auf Intel-Macs und ARM64 auf Apple-Silicon-Macs.
+- **Linux:** Öffne ein Terminal im Download-Ordner und führe aus:
+  ```bash
+  chmod +x MoonlightTizenInstaller-linux-x64
+  ./MoonlightTizenInstaller-linux-x64
+  ```
+  Alternativ kannst du im Dateimanager **Datei als Programm ausführen erlauben** aktivieren, sofern verfügbar, und die Datei öffnen.
+
+### 3. Dem Assistenten folgen
+
+1. Schalte den Fernseher ein und verbinde Fernseher und Computer mit demselben **lokalen Netzwerk**. WLAN und Ethernet werden unterstützt, sofern die Geräte kommunizieren können.
+2. Wähle im Begrüßungsbildschirm das Paket:
+   - **Normal package** (Standard): für die meisten Fernseher empfohlen.
+   - **Forced game mode package:** nur verwenden, wenn dein TV-Modell diese Variante zum Aktivieren des Spielemodus benötigt.
+3. Starte die Gerätesuche, wähle den Fernseher aus und folge den Anweisungen.
+4. Wenn **TV-Store** verfügbar ist, überträgt der Installer das Paket auf den Fernseher. Bestätige die Installation dort auf dem Fernseher.
+5. Ist TV-Store nicht verfügbar oder schlägt die Übergabe fehl, führt der Assistent durch die direkte Installation. Dafür müssen **Developer Mode** aktiviert und **Host PC IP** wie angezeigt eingestellt sein. Der Installer ruft die Gerätekennung automatisch ab und richtet das Signaturprofil ein; die DUID muss nicht selbst gesucht oder eingegeben werden.
+6. Warte auf die Abschlussmeldung und starte Moonlight über **Apps** am Fernseher.
+
+> [!IMPORTANT]
+> Lass den Installer geöffnet und befolge die Anweisungen. Die Übertragung an TV-Store schließt die Installation nicht ab: Du musst sie am Fernseher bestätigen. Bei direkter SDB-Installation müssen zuerst die angezeigten Developer-Mode-Schritte abgeschlossen werden.
+
+> [!TIP]
+> Apps2Samsung und Tizen Studio sind nicht erforderlich. Der Installer wählt den verfügbaren Weg und übernimmt die Signierung, falls die direkte SDB-Installation nötig ist.
+
+### Fehlerbehebung
+
+- **Fernseher wird nicht gefunden:** Prüfe, ob er eingeschaltet und im selben lokalen Netzwerk ist. Gast-WLAN, Client-Isolation oder getrennte VLANs können die Suche verhindern. Erlaube den Netzwerkzugriff in der Firewall, falls angefragt.
+- **macOS blockiert die App:** Verwende Finder → Ctrl-Klick → **Öffnen** oder **Systemeinstellungen → Datenschutz & Sicherheit → Dennoch öffnen**.
+- **Linux meldet fehlende Berechtigungen:** Führe den obigen Befehl `chmod +x` aus und starte die Datei erneut.
+- **Developer Mode wird verlangt:** Folge den Anweisungen einschließlich Host PC IP und versuche es erneut.
+- **TV-Store erhält das Paket, beendet die Installation aber nicht:** Bestätige die Installation am Fernseher. Falls TV-Store nicht fortfahren kann, nutze die SDB-Option des Assistenten.
+
+## Methode B: Installation mit Apps2Samsung
 
 ### Vor dem Start
 
@@ -78,7 +129,7 @@ Verwende die IPv4-Adresse des Computers, **nicht** das Standardgateway, die TV-I
 - **Auch nach dem Neustart keine Verbindung:** Trenne den Fernseher vollständig vom Strom, warte 10–15 Sekunden, schließe ihn wieder an und versuche es erneut. Das kann helfen, wenn die Entwicklerverbindung bei bestimmten Modellen nicht korrekt geöffnet wurde.
 - **Installation schlägt wegen Signatur-/Zertifikatskonflikt fehl:** Folge der Meldung von Apps2Samsung. Wenn du von der Brightcraft-Basis-App wechselst, lies vor einer Deinstallation den Abschnitt [Von der Brightcraft-Basis-App wechseln](#von-der-brightcraft-basis-app-wechseln).
 
-## Methode B: Tizen Studio
+## Methode C: Tizen Studio
 
 Tizen Studio ist die offizielle Samsung/Tizen-Entwicklungsumgebung und eignet sich für Entwickler und tiefergehende Fehlersuche.
 

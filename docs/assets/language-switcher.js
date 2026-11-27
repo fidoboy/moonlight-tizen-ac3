@@ -4,13 +4,13 @@
   const STORAGE_KEY = "moonlight-tizen-site-language-v2";
   const TEXT = {
     "Downloads installation paragraph":[
-      "For most users, we recommend installing Moonlight from the Apps2Samsung catalog and selecting {{catalog}}. You can also download the WGT file directly if you prefer to install it manually or need a specific build.",
-      "Para la mayoría de los usuarios, recomendamos instalar Moonlight desde el catálogo de Apps2Samsung y seleccionar {{catalog}}. También puedes descargar directamente el archivo WGT si prefieres instalarlo manualmente o necesitas una compilación específica.",
-      "Für die meisten Nutzer empfehlen wir, Moonlight über den Apps2Samsung-Katalog zu installieren und {{catalog}} auszuwählen. Sie können die WGT-Datei auch direkt herunterladen, wenn Sie die App manuell installieren möchten oder eine bestimmte Version benötigen.",
-      "Pour la plupart des utilisateurs, nous recommandons d’installer Moonlight depuis le catalogue Apps2Samsung et de sélectionner {{catalog}}. Vous pouvez également télécharger directement le fichier WGT si vous préférez l’installer manuellement ou si vous avez besoin d’une version précise.",
-      "Per la maggior parte degli utenti, consigliamo di installare Moonlight dal catalogo Apps2Samsung e selezionare {{catalog}}. Puoi anche scaricare direttamente il file WGT se preferisci installarlo manualmente o hai bisogno di una versione specifica.",
-      "Большинству пользователей мы рекомендуем установить Moonlight из каталога Apps2Samsung и выбрать {{catalog}}. Вы также можете скачать файл WGT напрямую, если предпочитаете установить приложение вручную или вам нужна определённая сборка.",
-      "Para a maioria dos usuários, recomendamos instalar o Moonlight pelo catálogo do Apps2Samsung e selecionar {{catalog}}. Você também pode baixar o arquivo WGT diretamente se preferir instalá-lo manualmente ou precisar de uma versão específica."
+      "The easiest option is to download the installer for your computer—based on the operating system you use—and run it on a network to which the TV is connected. It will guide you through the installation process until it is complete. Alternatively, you can also use Apps2Samsung and search for Moonlight (variant [fidoboy · Enhanced · Dolby]) there, or download an unsigned WGT package to perform the installation manually using other methods.",
+      "La opción más sencilla es descargar el instalador para tu ordenador, según el sistema operativo que utilices, y ejecutarlo en una red a la que esté conectado el televisor. Te guiará durante todo el proceso de instalación hasta completarlo. Como alternativa, también puedes utilizar Apps2Samsung y buscar allí Moonlight (variante [fidoboy · Enhanced · Dolby]), o descargar un paquete WGT sin firmar para realizar la instalación manualmente mediante otros métodos.",
+      "Am einfachsten laden Sie das Installationsprogramm für Ihren Computer herunter, das zu Ihrem Betriebssystem passt, und führen es in einem Netzwerk aus, mit dem auch der Fernseher verbunden ist. Es führt Sie durch den gesamten Installationsvorgang bis zum Abschluss. Alternativ können Sie auch Apps2Samsung verwenden und dort nach Moonlight (Variante [fidoboy · Enhanced · Dolby]) suchen oder ein unsigniertes WGT-Paket herunterladen, um die Installation manuell mit anderen Methoden durchzuführen.",
+      "La solution la plus simple consiste à télécharger le programme d’installation adapté au système d’exploitation de votre ordinateur, puis à l’exécuter sur un réseau auquel le téléviseur est connecté. Il vous guidera tout au long de la procédure d’installation jusqu’à son achèvement. Vous pouvez également utiliser Apps2Samsung et y rechercher Moonlight (variante [fidoboy · Enhanced · Dolby]), ou télécharger un paquet WGT non signé afin d’effectuer l’installation manuellement par d’autres méthodes.",
+      "L’opzione più semplice consiste nello scaricare il programma di installazione per il proprio computer, in base al sistema operativo utilizzato, ed eseguirlo su una rete alla quale è collegato il televisore. Ti guiderà attraverso l’intero processo di installazione fino al completamento. In alternativa, puoi anche utilizzare Apps2Samsung e cercare Moonlight (variante [fidoboy · Enhanced · Dolby]), oppure scaricare un pacchetto WGT non firmato per eseguire manualmente l’installazione con altri metodi.",
+      "Самый простой способ — скачать установщик для вашего компьютера с учётом используемой операционной системы и запустить его в сети, к которой подключён телевизор. Он проведёт вас через весь процесс установки до его завершения. Кроме того, можно воспользоваться Apps2Samsung и найти там Moonlight (вариант [fidoboy · Enhanced · Dolby]) или скачать неподписанный пакет WGT, чтобы выполнить установку вручную другими способами.",
+      "A opção mais simples é baixar o instalador adequado ao sistema operacional do seu computador e executá-lo em uma rede à qual a TV esteja conectada. Ele orientará você durante todo o processo de instalação até a conclusão. Como alternativa, você também pode usar o Apps2Samsung e pesquisar por Moonlight (variante [fidoboy · Enhanced · Dolby]) nele, ou baixar um pacote WGT não assinado para realizar a instalação manualmente por outros métodos."
     ],
     "The WGT is hosted by":["The WGT is hosted by","El WGT está alojado en","Das WGT wird gehostet von","Le WGT est hébergé par","Il WGT è ospitato da","WGT размещён на","O WGT está hospedado no"],
     ". No installer, paid hosting, or separate account is required to download it.":[". No installer, paid hosting, or separate account is required to download it.",". No se necesita instalador, alojamiento de pago ni una cuenta adicional para descargarlo.",". Zum Herunterladen sind weder ein Installer noch kostenpflichtiges Hosting oder ein separates Konto erforderlich.",". Aucun installateur, hébergement payant ou compte supplémentaire n’est nécessaire pour le télécharger.",". Non sono necessari un programma di installazione, un hosting a pagamento o un account separato per scaricarlo.",". Для загрузки не нужны установщик, платный хостинг или отдельная учётная запись.",". Não é necessário instalador, hospedagem paga ou uma conta separada para baixá-lo."],
@@ -64,6 +64,11 @@
     ],
     "experimental Sunshine branch maintained for this project":["experimental Sunshine branch maintained for this project","rama experimental de Sunshine mantenida para este proyecto","experimentellen Sunshine-Branch, der für dieses Projekt gepflegt wird","branche expérimentale de Sunshine maintenue pour ce projet","branch sperimentale di Sunshine mantenuto per questo progetto","экспериментальной ветке Sunshine, поддерживаемой для этого проекта","branch experimental do Sunshine mantido para este projeto"],
     "Vibeshine installer":["Vibeshine installer","Instalador de Vibeshine","Vibeshine-Installer","Programme d’installation de Vibeshine","Programma di installazione di Vibeshine","Установщик Vibeshine","Instalador do Vibeshine"],
+    "Download installer":["Download installer","Descargar instalador","Installationsprogramm herunterladen","Télécharger le programme d’installation","Scarica il programma di installazione","Скачать установщик","Baixar instalador"],
+    "Windows x64":["Windows x64","Windows x64","Windows x64","Windows x64","Windows x64","Windows x64","Windows x64"],
+    "Linux x64":["Linux x64","Linux x64","Linux x64","Linux x64","Linux x64","Linux x64","Linux x64"],
+    "macOS Intel":["macOS Intel","macOS Intel","macOS Intel","macOS Intel","macOS Intel","macOS Intel","macOS Intel"],
+    "macOS Apple silicon":["macOS Apple silicon","macOS Apple Silicon","macOS Apple Silicon","macOS Apple silicon","macOS Apple silicon","macOS Apple silicon","macOS Apple silicon"],
     "EXE":["EXE","EXE","EXE","EXE","EXE","EXE","EXE"]
   };
   const indexFor = code => {
@@ -329,8 +334,15 @@
     return syncPicker;
   }
 
+  function translateMarkedText(root, code) {
+    if (!root) return;
+    for (const element of root.querySelectorAll("[data-i18n]")) {
+      element.textContent = translated(element.dataset.i18n, code);
+    }
+  }
   function applyHomeLanguage(code) {
     document.documentElement.lang = code === "pt-br" ? "pt-BR" : code;
+    translateMarkedText(document.body, code);
     translateRichText(document.body, code);
     translateText(document.body, code);
     translateAttributes(document, code);
