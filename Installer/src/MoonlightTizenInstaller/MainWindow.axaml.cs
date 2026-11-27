@@ -917,13 +917,13 @@ public sealed partial class MainWindow : Window
         };
         var keepButton = new Button
         {
-            Content = InstallerLocalization.T("Keep existing certificate"),
+            Content = InstallerLocalization.T("Keep existing"),
             Width = 230, MinWidth = 230,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center
         };
         var newButton = new Button
         {
-            Content = InstallerLocalization.T("Generate new certificate"),
+            Content = InstallerLocalization.T("Generate new"),
             Width = 230, MinWidth = 230,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             Classes = { "primary" }
