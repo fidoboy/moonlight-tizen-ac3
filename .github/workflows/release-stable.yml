@@ -163,9 +163,19 @@ jobs:
           {
             printf '## 🔥 Highlights\n\n'
             tail -n +2 .github/release-notes.md
+
+            printf '\n\n## Download the installer\n\n'
+            printf 'These standalone executables install Moonlight Tizen on your Samsung TV. Each one includes everything needed, including the app packages, so you do not need to install .NET, Python, Tizen Studio, or Apps2Samsung. Download the version that matches the operating system and processor architecture of the computer you will use:\n\n'
+            printf '| Platform | Download |\n'
+            printf '|---|---|\n'
+            printf '| Windows (x64) | [MoonlightTizenInstaller.exe](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.exe) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| Linux (x64) | [MoonlightTizenInstaller](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| macOS (Intel) | [MoonlightTizenInstaller-osx-x64](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-x64) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| macOS (Apple Silicon) | [MoonlightTizenInstaller-osx-arm64](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-arm64) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+
             printf '\n\n---\n\n<details>\n<summary>⚙️ Changelog details for v%s</summary>\n\n' "$RELEASE_VERSION"
             cat "$VERSIONED_ENTRY"
-            printf '\n\n</details>\n\n**Changelog:** [View the entry for v%s](%s)\n' "$RELEASE_VERSION" "$CHANGELOG_URL"
+            printf '\n\n</details>\n'
           } > "$RUNNER_TEMP/release-notes.md"
           test -s "$RUNNER_TEMP/release-notes.md"
 
