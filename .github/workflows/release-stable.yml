@@ -120,6 +120,7 @@ jobs:
         shell: bash
         env:
           RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
         run: |
           set -euo pipefail
           CHANGELOG_FILE="CHANGELOG.md"
@@ -163,7 +164,7 @@ jobs:
             printf '## 🔥 Highlights\n\n'
             tail -n +2 .github/release-notes.md
 
-            printf '\n\n## Download the installer\n\n'
+            printf '\n\n---\n\n## Download the installer\n\n'
             printf 'These standalone executables install Moonlight Tizen on your Samsung TV. Each one includes everything needed, including the app packages, so you do not need to install .NET, Python, Tizen Studio, or Apps2Samsung. Download the version that matches the operating system and processor architecture of the computer you will use:\n\n'
             printf '| Platform | Download |\n'
             printf '|---|---|\n'
