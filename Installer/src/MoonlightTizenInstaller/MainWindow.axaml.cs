@@ -1112,7 +1112,7 @@ public sealed partial class MainWindow : Window
         {
             icon.Data = Avalonia.Media.Geometry.Parse(success ? "M 3,12 L 9,18 L 21,6" : "M 6,6 L 18,18 M 18,6 L 6,18");
             // The checkmark has a lower visual center than the cross; compensate slightly upward.
-            icon.Margin = success ? new Avalonia.Thickness(0, -5, 0, 0) : new Avalonia.Thickness(0);
+            icon.Margin = success ? new Avalonia.Thickness(0, -2, 0, 0) : new Avalonia.Thickness(0);
             icon.Stroke = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
         }
         if (this.FindControl<TextBlock>("InstallationResultTitle") is { } title)
