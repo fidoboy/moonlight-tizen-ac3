@@ -39,7 +39,7 @@ public partial class ResultStatusIcon : UserControl
         circle.BorderBrush = new SolidColorBrush(color);
         mark.Data = Geometry.Parse(success
             ? "M 3,12 L 9,18 L 21,6"
-            : "M 6,6 L 18,18 M 18,6 L 6,18");
+            : "M 4,4 L 20,20 M 20,4 L 4,20");
         mark.Stroke = new SolidColorBrush(color);
     }
 }
