@@ -72,7 +72,9 @@ public sealed class CertificateManager
     public string? GetStoredAuthorCertificateName(
         CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner)
     {
-        var profileDirectory = Path.Combine(_options.ProfileStorePath, CertificateProvisioningService.ProfileName(level));
+        var profileDirectory = GetStoredProfileDirectory(level);
+        if (profileDirectory is null)
+            return null;
         var authorPath = Path.Combine(profileDirectory, "author.p12");
         var password = CertificateSecrets.GetOrMigrate(profileDirectory);
         if (string.IsNullOrEmpty(password) || !File.Exists(authorPath))
@@ -85,6 +87,41 @@ public sealed class CertificateManager
                 authorPath, password, X509KeyStorageFlags.EphemeralKeySet);
 #pragma warning restore SYSLIB0057
             return certificate.GetNameInfo(X509NameType.SimpleName, false);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string? GetStoredProfileDirectory(CertificatePrivilegeLevel level)
+    {
+        var current = Path.Combine(_options.ProfileStorePath, CertificateProvisioningService.ProfileName(level));
+        if (File.Exists(Path.Combine(current, "author.p12")))
+            return current;
+
+        var suffix = level == CertificatePrivilegeLevel.Partner ? "Partner" : "Public";
+        var legacy = Path.Combine(_options.ProfileStorePath, $"Jelly2Sams - {suffix}");
+        return File.Exists(Path.Combine(legacy, "author.p12")) ? legacy : null;
+    }
+
+    /// <summary>Reads the saved author certificate details, including legacy profile locations.</summary>
+    public (string Subject, DateTime IssuedOn, DateTime ExpiresOn)? GetStoredAuthorCertificateDetails(
+        CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner)
+    {
+        var directory = GetStoredProfileDirectory(level);
+        if (directory is null)
+            return null;
+        var authorPath = Path.Combine(directory, "author.p12");
+        var password = CertificateSecrets.GetOrMigrate(directory);
+        if (string.IsNullOrEmpty(password))
+            return null;
+        try
+        {
+#pragma warning disable SYSLIB0057
+            using var certificate = new X509Certificate2(authorPath, password, X509KeyStorageFlags.EphemeralKeySet);
+#pragma warning restore SYSLIB0057
+            return (certificate.GetNameInfo(X509NameType.SimpleName, false), certificate.NotBefore, certificate.NotAfter);
         }
         catch
         {
