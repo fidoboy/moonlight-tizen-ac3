@@ -18,7 +18,6 @@ namespace Apps2Samsung.Helpers.Tizen.Certificate
         public List<ExistingCertificates> GetAvailableCertificates(params string[] certificateFolders)
         {
             var certificates = new List<ExistingCertificates>();
-            var cipherUtil = new CipherUtil();
             List<string> duids = new List<string>();
 
             // "Automatic" placeholder: the installer picks the generated profile per install.
