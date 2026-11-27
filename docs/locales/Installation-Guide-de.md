@@ -18,9 +18,9 @@ Empfohlen wird der **Moonlight Tizen Installer**. Führe ihn auf einem Windows-,
 Öffne die [aktuelle stabile Version](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) und lade unter **Assets** die passende Datei herunter:
 
 - **Windows 64-Bit:** `MoonlightTizenInstaller.exe`
-- **Linux 64-Bit:** `MoonlightTizenInstaller`
-- **macOS Intel:** `MoonlightTizenInstaller-osx-x64`
-- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64`
+- **Linux 64-Bit:** `MoonlightTizenInstaller.tar.gz`
+- **macOS Intel:** `MoonlightTizenInstaller-osx-x64.zip`
+- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.zip`
 
 Der Installer ist eine eigenständige ausführbare Datei, die bereits alles Notwendige enthält, einschließlich der TizenOS-App selbst, die auf deinen Fernseher übertragen wird.
 
@@ -30,8 +30,10 @@ Der Installer ist eine eigenständige ausführbare Datei, die bereits alles Notw
 - **macOS:** Öffne in Finder **Downloads**, klicke mit gedrückter Ctrl-Taste (oder rechts) auf die Datei und wähle **Öffnen**. Bestätige die Rückfrage. Wurde die App blockiert, gehe zu **Systemeinstellungen → Datenschutz & Sicherheit**, suche den Hinweis und wähle **Dennoch öffnen**. Verwende Intel auf Intel-Macs und ARM64 auf Apple-Silicon-Macs.
 - **Linux:** Öffne ein Terminal im Download-Ordner und führe aus:
   ```bash
-  chmod +x MoonlightTizenInstaller
-  ./MoonlightTizenInstaller
+  tar -xzf MoonlightTizenInstaller.tar.gz
+  cd MoonlightTizenInstaller
+  chmod +x install.sh
+  ./install.sh
   ```
   Alternativ kannst du im Dateimanager **Datei als Programm ausführen erlauben** aktivieren, sofern verfügbar, und die Datei öffnen.
 
