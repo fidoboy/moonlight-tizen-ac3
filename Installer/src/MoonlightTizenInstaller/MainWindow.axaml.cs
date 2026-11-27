@@ -555,22 +555,8 @@ public sealed partial class MainWindow : Window
             description.IsVisible = false;
         if (this.FindControl<Grid>("TvStoreResultPanel") is { } resultPanel)
             resultPanel.IsVisible = true;
-        if (this.FindControl<Border>("TvStoreResultIconCircle") is { } iconCircle)
-        {
-            var statusColor = Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62");
-            iconCircle.Background = new Avalonia.Media.SolidColorBrush(
-                Avalonia.Media.Color.Parse(success ? "#173F2B" : "#4A2025"));
-            iconCircle.BorderBrush = new Avalonia.Media.SolidColorBrush(statusColor);
-            iconCircle.BorderThickness = new Avalonia.Thickness(3);
-        }
-        if (this.FindControl<Avalonia.Controls.Shapes.Path>("TvStoreResultIcon") is { } icon)
-        {
-            icon.Data = Avalonia.Media.Geometry.Parse(success
-                ? "M 3,12 L 9,18 L 21,6"
-                : "M 6,6 L 18,18 M 18,6 L 6,18");
-            icon.Stroke = new Avalonia.Media.SolidColorBrush(
-                Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
-        }
+        if (this.FindControl<ResultStatusIcon>("TvStoreResultStatusIcon") is { } statusIcon)
+            statusIcon.IsSuccess = success;
         if (this.FindControl<TextBlock>("TvStoreResultTitle") is { } resultTitle)
             resultTitle.Text = InstallerLocalization.T(success
                 ? "Transfer complete"
@@ -1239,17 +1225,8 @@ public sealed partial class MainWindow : Window
     {
         if (this.FindControl<Grid>("InstallationResultPanel") is { } resultPanel)
             resultPanel.IsVisible = true;
-        if (this.FindControl<Border>("InstallationResultIconCircle") is { } iconCircle)
-        {
-            var color = Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62");
-            iconCircle.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(success ? "#173F2B" : "#4A2025"));
-            iconCircle.BorderBrush = new Avalonia.Media.SolidColorBrush(color);
-        }
-        if (this.FindControl<Avalonia.Controls.Shapes.Path>("InstallationResultIcon") is { } icon)
-        {
-            icon.Data = Avalonia.Media.Geometry.Parse(success ? "M 3,12 L 9,18 L 21,6" : "M 6,6 L 18,18 M 18,6 L 6,18");
-            icon.Stroke = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
-        }
+        if (this.FindControl<ResultStatusIcon>("InstallationResultStatusIcon") is { } statusIcon)
+            statusIcon.IsSuccess = success;
         if (this.FindControl<TextBlock>("InstallationResultTitle") is { } title)
             title.Text = InstallerLocalization.T(success ? "Installation complete" : "Moonlight could not be installed");
         if (this.FindControl<TextBlock>("InstallationResultMessage") is { } resultMessage)
