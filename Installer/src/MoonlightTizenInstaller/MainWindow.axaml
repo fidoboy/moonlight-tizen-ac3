@@ -345,8 +345,9 @@
           <TextBlock Name="InstallationStepLabel" Text="STEP 5 · RESULT" Foreground="#A7D3FF" FontSize="12" FontWeight="Bold" IsVisible="False" />
           <TextBlock Name="InstallationPageTitle" Text="Install Moonlight" FontSize="28" FontWeight="Bold" />
           <Grid Name="TvStoreResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
-                IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
-            <local:ResultStatusIcon Name="TvStoreResultStatusIcon" Grid.Column="0" />
+                IsVisible="False" VerticalAlignment="Top" Margin="0,26,0,0">
+            <local:ResultStatusIcon Name="TvStoreResultStatusIcon" Grid.Column="0"
+                                    VerticalAlignment="Top" Margin="0,-24,0,0" />
             <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
               <TextBlock Name="TvStoreResultTitle" Text="Transfer complete"
                          FontSize="22" FontWeight="Bold" />
@@ -368,8 +369,9 @@
             </Border>
           </StackPanel>
           <Grid Name="InstallationResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
-                IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
-            <local:ResultStatusIcon Name="InstallationResultStatusIcon" Grid.Column="0" />
+                IsVisible="False" VerticalAlignment="Top" Margin="0,26,0,0">
+            <local:ResultStatusIcon Name="InstallationResultStatusIcon" Grid.Column="0"
+                                    VerticalAlignment="Top" Margin="0,-24,0,0" />
             <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
               <TextBlock Name="InstallationResultTitle" Text="Installation complete"
                          FontSize="22" FontWeight="Bold" />
