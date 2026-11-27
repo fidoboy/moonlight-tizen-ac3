@@ -170,7 +170,7 @@ jobs:
             printf '| Platform | Download |\n'
             printf '|---|---|\n'
             printf '| Windows (x64) | [MoonlightTizenInstaller.exe](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.exe) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
-            printf '| Linux (x64) | [MoonlightTizenInstaller-linux-x64.tar.gz](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-linux-x64.tar.gz) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| Linux (x64) | [MoonlightTizenInstaller.tar.gz](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.tar.gz) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
             printf '| macOS (Intel) | [MoonlightTizenInstaller-osx-x64.zip](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-x64.zip) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
             printf '| macOS (Apple Silicon) | [MoonlightTizenInstaller-osx-arm64.zip](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-arm64.zip) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
 
@@ -758,9 +758,9 @@ jobs:
           PY
           desktop-file-validate "$package/share/applications/MoonlightTizenInstaller.desktop"
           file "$package/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
-          tar -czf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
-          tar -tzf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz | grep -q 'MoonlightTizenInstaller/share/applications/MoonlightTizenInstaller.desktop'
-          tar -tzf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz | grep -q 'MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png'
+          tar -czf artifacts/dist/MoonlightTizenInstaller.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
+          tar -tzf artifacts/dist/MoonlightTizenInstaller.tar.gz | grep -q 'MoonlightTizenInstaller/share/applications/MoonlightTizenInstaller.desktop'
+          tar -tzf artifacts/dist/MoonlightTizenInstaller.tar.gz | grep -q 'MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png'
           test_home="$(mktemp -d)"
           trap 'rm -rf "$test_home"' EXIT
           HOME="$test_home" XDG_DATA_HOME="$test_home/.local/share" "$package/install.sh"
@@ -877,7 +877,7 @@ jobs:
           cp release-inputs/Moonlight.wgt dist/Moonlight.wgt
           cp release-inputs/Moonlight-ForceGM.wgt dist/Moonlight-ForceGM.wgt
           cp installer-win-x64/MoonlightTizenInstaller.exe dist/MoonlightTizenInstaller.exe
-          cp installer-linux-x64/MoonlightTizenInstaller-linux-x64.tar.gz dist/MoonlightTizenInstaller-linux-x64.tar.gz
+          cp installer-linux-x64/MoonlightTizenInstaller.tar.gz dist/MoonlightTizenInstaller.tar.gz
           cp installer-osx-x64/MoonlightTizenInstaller-osx-x64.zip dist/MoonlightTizenInstaller-osx-x64.zip
           cp installer-osx-arm64/MoonlightTizenInstaller-osx-arm64.zip dist/MoonlightTizenInstaller-osx-arm64.zip
           cp release-inputs/release-notes.md "$RUNNER_TEMP/release-notes.md"
@@ -902,7 +902,7 @@ jobs:
             dist/Moonlight.wgt
             dist/Moonlight-ForceGM.wgt
             dist/MoonlightTizenInstaller.exe
-            dist/MoonlightTizenInstaller-linux-x64.tar.gz
+            dist/MoonlightTizenInstaller.tar.gz
             dist/MoonlightTizenInstaller-osx-x64.zip
             dist/MoonlightTizenInstaller-osx-arm64.zip
           body_path: ${{ runner.temp }}/release-notes.md
