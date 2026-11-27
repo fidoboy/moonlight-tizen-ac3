@@ -16,6 +16,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
 
@@ -47,13 +48,10 @@ namespace Apps2Samsung.Services
             if (string.IsNullOrEmpty(outputPath))
                 throw new ArgumentException("Output path cannot be empty", nameof(outputPath));
 
-            var cipherUtil = new CipherUtil();
-
             Directory.CreateDirectory(outputPath);
 
             progress?.Invoke("GenPassword");
-            string p12Plain = cipherUtil.GenerateRandomPassword();
-            string p12Encrypted = cipherUtil.GetEncryptedString(p12Plain);
+            string p12Plain = GenerateRandomPassword();
 
             progress?.Invoke("GenKeyPair");
             var keyPair = GenerateKeyPair();
@@ -142,6 +140,34 @@ namespace Apps2Samsung.Services
             var privateKey = store.GetKey(alias).Key;
             var publicKey = store.GetCertificate(alias).Certificate.GetPublicKey();
             return new AsymmetricCipherKeyPair(publicKey, privateKey);
+        }
+
+        private static string GenerateRandomPassword(int length = 12)
+        {
+            if (length < 8)
+                throw new ArgumentException("Password must be at least 8 characters long.", nameof(length));
+
+            const string upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+            const string lower = "abcdefghijklmnopqrstuvwxyz";
+            const string digits = "0123456789";
+            const string all = upper + lower + digits;
+
+            var chars = new char[length];
+            chars[0] = upper[RandomNumberGenerator.GetInt32(upper.Length)];
+            chars[1] = lower[RandomNumberGenerator.GetInt32(lower.Length)];
+            chars[2] = digits[RandomNumberGenerator.GetInt32(digits.Length)];
+
+            for (int i = 3; i < length; i++)
+                chars[i] = all[RandomNumberGenerator.GetInt32(all.Length)];
+
+            // Cryptographically unbiased Fisher-Yates shuffle.
+            for (int i = chars.Length - 1; i > 0; i--)
+            {
+                int j = RandomNumberGenerator.GetInt32(i + 1);
+                (chars[i], chars[j]) = (chars[j], chars[i]);
+            }
+
+            return new string(chars);
         }
 
         private static AsymmetricCipherKeyPair GenerateKeyPair()
