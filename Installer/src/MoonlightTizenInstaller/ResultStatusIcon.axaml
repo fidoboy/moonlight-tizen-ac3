@@ -9,7 +9,7 @@
              HorizontalAlignment="Center" VerticalAlignment="Center">
       <Path x:Name="Mark" Data="M 3,12 L 9,18 L 21,6"
             Stroke="#35C978" StrokeThickness="2.8"
-            StrokeLineCap="Round"
+            StrokeLineCap="Round" StrokeJoin="Round"
             Fill="Transparent" />
     </Viewbox>
   </Border>
