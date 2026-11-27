@@ -34,6 +34,10 @@ This repository is an **independently maintained project derived from** [Brightc
 >
 > The complete path has been tested with Vibeshine and also with experimental Sunshine host, and Moonlight Tizen on a Samsung TV, including AC-3 and E-AC-3 in default and High Quality audio modes. Results depend on the connected TV and audio equipment.
 
+
+![Moonlight Tizen](res/moonlight-tizen-screenshot.png)
+
+
 ### Other improvements in this project
 
 - **Faster Smart Hub app launching:** games and applications can now be launched directly from their Smart Hub shortcuts without loading Moonlight's full interface, significantly reducing startup time. Launching Moonlight from its own app icon retains the normal startup flow.
