@@ -156,6 +156,16 @@ jobs:
           tar -czf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
           tar -tzf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz | grep -q 'MoonlightTizenInstaller/share/applications/MoonlightTizenInstaller.desktop'
           tar -tzf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz | grep -q 'MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png'
+          test_home="$(mktemp -d)"
+          trap 'rm -rf "$test_home"' EXIT
+          HOME="$test_home" XDG_DATA_HOME="$test_home/.local/share" "$package/install.sh"
+          test -x "$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller"
+          test -L "$test_home/.local/bin/moonlight-tizen-installer"
+          test -s "$test_home/.local/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
+          desktop="$test_home/.local/share/applications/MoonlightTizenInstaller.desktop"
+          test -s "$desktop"
+          desktop-file-validate "$desktop"
+          grep -Fq "Exec=\\"$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller\\"" "$desktop"
 
       - name: Prepare macOS application bundle
         if: startsWith(matrix.rid, 'osx-')
