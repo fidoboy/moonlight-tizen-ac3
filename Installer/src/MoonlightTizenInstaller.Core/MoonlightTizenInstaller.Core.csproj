@@ -24,7 +24,6 @@
     <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateEndpoints.cs" Link="Vendor/CertificateEndpoints.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificatePrivilegeLevel.cs" Link="Vendor/CertificatePrivilegeLevel.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Certificate/ITizenCertificateService.cs" Link="Vendor/ITizenCertificateService.cs" />
-    <Compile Include="../../vendor/Apps2Samsung/Certificate/CipherUtil.cs" Link="Vendor/CipherUtil.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateBackups.cs" Link="Vendor/CertificateBackups.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateArchive.cs" Link="Vendor/CertificateArchive.cs" />
     <Compile Include="../../vendor/Apps2Samsung/Certificate/CertificateValidity.cs" Link="Vendor/CertificateValidity.cs" />
