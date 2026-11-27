@@ -688,11 +688,11 @@ public sealed partial class MainWindow : Window
         });
         if (messageParts.Length > 1)
             message.Inlines.Add(new Avalonia.Controls.Documents.Run(messageParts[1]));
-        var storeIcon = new Avalonia.Controls.Shapes.Path
+        var certificateIcon = new Avalonia.Controls.Shapes.Path
         {
-            Data = Avalonia.Media.Geometry.Parse("M 4,16 L 44,16 L 40,44 L 8,44 Z M 14,16 C 14,4 34,4 34,16"),
+            Data = Avalonia.Media.Geometry.Parse("M 10,4 L 34,4 L 42,12 L 42,42 L 10,42 Z M 34,4 L 34,12 L 42,12 M 16,18 L 34,18 M 16,24 L 30,24"),
             Stroke = Avalonia.Media.Brushes.White,
-            StrokeThickness = 3,
+            StrokeThickness = 2.8,
             StrokeLineCap = Avalonia.Media.PenLineCap.Round,
             Fill = Avalonia.Media.Brushes.Transparent,
             Width = 48,
@@ -714,13 +714,9 @@ public sealed partial class MainWindow : Window
                 Stretch = Avalonia.Media.Stretch.Uniform,
                 HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                 VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Child = storeIcon
+                Child = certificateIcon
             }
         };
-        storeIcon.Width = 48;
-        storeIcon.Height = 48;
-        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         var useButton = new Button
         {
             Content = InstallerLocalization.T("Yes, use TV-Store"),
