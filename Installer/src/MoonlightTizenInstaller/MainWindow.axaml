@@ -346,16 +346,7 @@
           <TextBlock Name="InstallationPageTitle" Text="Install Moonlight" FontSize="28" FontWeight="Bold" />
           <Grid Name="TvStoreResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
                 IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
-            <Border Name="TvStoreResultIconCircle" Width="76" Height="76" CornerRadius="38"
-                    Background="#173F2B" BorderBrush="#35C978" BorderThickness="3"
-                    HorizontalAlignment="Center" VerticalAlignment="Center">
-              <Grid>
-                <Path Name="TvStoreResultIcon" Data="M 3,12 L 9,18 L 21,6"
-                      Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
-                      StrokeThickness="2.8" StrokeLineCap="Round"
-                      HorizontalAlignment="Center" VerticalAlignment="Center" />
-              </Grid>
-            </Border>
+            <local:ResultStatusIcon Name="TvStoreResultStatusIcon" Grid.Column="0" />
             <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
               <TextBlock Name="TvStoreResultTitle" Text="Transfer complete"
                          FontSize="22" FontWeight="Bold" />
@@ -378,14 +369,7 @@
           </StackPanel>
           <Grid Name="InstallationResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
                 IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
-            <Border Name="InstallationResultIconCircle" Width="76" Height="76" CornerRadius="38"
-                    Background="#173F2B" BorderBrush="#35C978" BorderThickness="3"
-                    HorizontalAlignment="Center" VerticalAlignment="Center">
-              <Path Name="InstallationResultIcon" Data="M 3,12 L 9,18 L 21,6"
-                    Width="40" Height="40" Stretch="Uniform" Stroke="#35C978"
-                    StrokeThickness="2.8" StrokeLineCap="Round"
-                    HorizontalAlignment="Center" VerticalAlignment="Center" />
-            </Border>
+            <local:ResultStatusIcon Name="InstallationResultStatusIcon" Grid.Column="0" />
             <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
               <TextBlock Name="InstallationResultTitle" Text="Installation complete"
                          FontSize="22" FontWeight="Bold" />
