@@ -918,13 +918,13 @@ public sealed partial class MainWindow : Window
         var keepButton = new Button
         {
             Content = InstallerLocalization.T("Keep existing certificate"),
-            Width = 190, MinWidth = 190,
+            Width = 230, MinWidth = 230,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center
         };
         var newButton = new Button
         {
             Content = InstallerLocalization.T("Generate new certificate"),
-            Width = 190, MinWidth = 190,
+            Width = 230, MinWidth = 230,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             Classes = { "primary" }
         };
@@ -951,7 +951,7 @@ public sealed partial class MainWindow : Window
         };
         var dialog = new Window
         {
-            Width = 596,
+            Width = 660,
             SizeToContent = Avalonia.Controls.SizeToContent.Height,
             CanResize = false,
             SystemDecorations = SystemDecorations.None,
