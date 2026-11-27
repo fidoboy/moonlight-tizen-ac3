@@ -93,7 +93,7 @@ for call in re.finditer(r'InstallerLocalization\.T\((.*?)\)', all_source, re.S):
 # Normalize interpolated expressions to numbered placeholders and mirror the
 # UI's removal of percentage values and internal SDB terminology.
 for report in re.finditer(r'progress\?\.Report\(\s*\$?"((?:\\.|[^"\\])*)"\s*\)', all_source):
-    message = normalize_interpolated(unescape_csharp(report.group(1)).replace("SDB", "conexión"))
+    message = normalize_interpolated(unescape_csharp(report.group(1)).replace("SDB", "connection"))
     message = re.sub(r"\s*\{\d+\}\s*%", "", message).strip()
     expected.add(message)
 
