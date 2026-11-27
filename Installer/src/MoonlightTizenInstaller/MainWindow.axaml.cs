@@ -282,7 +282,7 @@ public sealed partial class MainWindow : Window
 
         var message = new TextBlock
         {
-            Text = InstallerLocalization.T($"El paquete {resourceName} no está integrado en este ejecutable o está dañado. Descarga de nuevo el instalador."),
+            Text = InstallerLocalization.T($"The {resourceName} package is missing from this executable or is damaged. Download the installer again."),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             Margin = new Avalonia.Thickness(20)
         };
@@ -494,7 +494,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions(InstallerLocalization.T($"No se ha podido completar la detección ({ex.Message}). Comprueba la conexión de red y vuelve a intentarlo."));
+            ShowDeveloperModeInstructions(InstallerLocalization.T($"Detection could not be completed ({ex.Message}). Check the network connection and try again."));
         }
         finally
         {
@@ -633,7 +633,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions(InstallerLocalization.T($"No se ha podido preparar la instalación ({ex.Message}). Comprueba la conexión y pulsa Reintentar."));
+            ShowDeveloperModeInstructions(InstallerLocalization.T($"Installation could not be prepared ({ex.Message}). Check the connection and click Retry."));
         }
         finally
         {
@@ -910,7 +910,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            if (status is not null) status.Text = InstallerLocalization.T($"No se pudo generar el certificado: {ex.Message}");
+            if (status is not null) status.Text = InstallerLocalization.T($"Could not generate the certificate: {ex.Message}");
         }
         finally
         {
@@ -1064,7 +1064,7 @@ public sealed partial class MainWindow : Window
             }
             else
             {
-                ShowInstallationResult(false, InstallerLocalization.T($"No se ha podido instalar Moonlight en el televisor. {HideInternalProtocolNames(errorMessage)}"));
+                ShowInstallationResult(false, InstallerLocalization.T($"Moonlight could not be installed on the TV. {HideInternalProtocolNames(errorMessage)}"));
             }
         }
         finally
@@ -1129,7 +1129,7 @@ public sealed partial class MainWindow : Window
     }
 
     private static string HideInternalProtocolNames(string message) =>
-        message.Replace("SDB", "conexión", StringComparison.OrdinalIgnoreCase);
+        message.Replace("SDB", "connection", StringComparison.OrdinalIgnoreCase);
 
     private void SetOperationStatus(string message)
     {
