@@ -68,7 +68,7 @@ public sealed class SdbInstallationService
             : DefaultSdkToolPath;
         var remotePath = $"{sdkToolPath}/{RemotePackageName}";
 
-        progress?.Report("Transfiriendo el paquete firmado al televisor…");
+        progress?.Report("Transferring the signed package to the TV…");
         await using (var package = File.OpenRead(packagePath))
         {
             var transferProgress = new Progress<double>(fraction =>
@@ -76,7 +76,7 @@ public sealed class SdbInstallationService
             await device.PushAsync(package, remotePath, transferProgress, cancellationToken).ConfigureAwait(false);
         }
 
-        progress?.Report("Solicitando la instalación a Tizen…");
+        progress?.Report("Requesting installation from Tizen…");
         var output = new StringBuilder();
         await foreach (var line in device.ShellCommandLinesAsync(
                            $"0 vd_appinstall {packageId} {remotePath}",
@@ -106,7 +106,7 @@ public sealed class SdbInstallationService
             throw new InvalidOperationException(
                 $"La TV no ha confirmado que la instalación haya terminado correctamente. Respuesta de SDB:{Environment.NewLine}{result.Trim()}");
 
-        progress?.Report("Tizen ha confirmado la instalación de Moonlight.");
+        progress?.Report("Tizen has confirmed the Moonlight installation.");
         return new InstallationResult(packageId, sdbPort, result.Trim());
     }
 
