@@ -165,9 +165,9 @@ jobs:
           PY
           desktop-file-validate "$package/share/applications/MoonlightTizenInstaller.desktop"
           file "$package/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
-          tar -czf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
-          tar -tzf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz | grep -q 'MoonlightTizenInstaller/share/applications/MoonlightTizenInstaller.desktop'
-          tar -tzf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz | grep -q 'MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png'
+          tar -czf artifacts/dist/MoonlightTizenInstaller.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
+          tar -tzf artifacts/dist/MoonlightTizenInstaller.tar.gz | grep -q 'MoonlightTizenInstaller/share/applications/MoonlightTizenInstaller.desktop'
+          tar -tzf artifacts/dist/MoonlightTizenInstaller.tar.gz | grep -q 'MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png'
           test_home="$(mktemp -d)"
           trap 'rm -rf "$test_home"' EXIT
           HOME="$test_home" XDG_DATA_HOME="$test_home/.local/share" "$package/install.sh"
