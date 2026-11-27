@@ -10,6 +10,8 @@ internal static class InstallerLocalization
     private static readonly string[] Locales = ["en-US", "de-DE", "es-ES", "fr-FR", "it-IT", "pt-BR", "ru-RU"];
     private static readonly Dictionary<string, string[]> Translations = new()
     {
+        ["Minimize"] = ["Minimize", "Minimieren", "Minimizar", "Réduire", "Riduci", "Minimizar", "Свернуть"],
+        ["Close"] = ["Close", "Schließen", "Cerrar", "Fermer", "Chiudi", "Fechar", "Закрыть"],
         ["Inicio"] = ["Welcome", "Willkommen", "Inicio", "Accueil", "Benvenuto", "Início", "Начало"],
         ["Select the installer language"] = ["Select the installer language", "Installationssprache auswählen", "Selecciona el idioma del instalador", "Choisissez la langue du programme d’installation", "Seleziona la lingua del programma di installazione", "Selecione o idioma do instalador", "Выберите язык установщика"],
         ["Televisor"] = ["TV", "Fernseher", "Televisor", "Téléviseur", "Televisore", "Televisor", "Телевизор"],
@@ -217,6 +219,8 @@ internal static class InstallerLocalization
             if (button.Content is string text) button.Content = T(text);
         foreach (var radioButton in window.GetLogicalDescendants().OfType<RadioButton>())
             if (radioButton.Content is string text) radioButton.Content = T(text);
+        foreach (var control in window.GetLogicalDescendants().OfType<Control>())
+            if (ToolTip.GetTip(control) is string tip) ToolTip.SetTip(control, T(tip));
         window.Title = T(window.Title);
     }
 }
