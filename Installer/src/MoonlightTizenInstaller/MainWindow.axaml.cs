@@ -40,6 +40,7 @@ public sealed partial class MainWindow : Window
     private string? _signedPackagePathForRetry;
     private string? _signedPackageDirectoryForRetry;
     private bool _manualLanguageSelected;
+    private bool _certificatePreparationSelected;
     private int _wizardStep = 1;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
@@ -589,6 +590,7 @@ public sealed partial class MainWindow : Window
     {
         _selectedTelevision = device;
         _selectedDuid = null;
+        _certificatePreparationSelected = false;
         _tvStoreHandoff = false;
         if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
@@ -627,6 +629,13 @@ public sealed partial class MainWindow : Window
             }
 
             SetTelevisionActionsEnabled(true);
+            var storedName = _certificates.GetStoredAuthorCertificateName();
+            if (!string.IsNullOrWhiteSpace(storedName) &&
+                !string.Equals(storedName, CertificateProvisioningService.ProfileBaseName, StringComparison.OrdinalIgnoreCase))
+            {
+                _certificatePreparationSelected = await ConfirmCertificateRegenerationAsync(storedName);
+                SetTelevisionActionsEnabled(true);
+            }
         }
         catch (OperationCanceledException)
         {
@@ -836,31 +845,34 @@ public sealed partial class MainWindow : Window
     {
         var hasDuid = enabled && TizenDuid.IsValid(_selectedDuid);
         var certificateReady = hasDuid && _certificates.IsReadyForTelevision(_selectedDuid!);
+        var storedName = hasDuid ? _certificates.GetStoredAuthorCertificateName() : null;
+        var hasStoredCertificate = !string.IsNullOrWhiteSpace(storedName) && !_certificatePreparationSelected;
+        var showPreparation = hasDuid && !hasStoredCertificate;
 
         if (this.FindControl<Button>("GenerateCertificateButton") is { } generate)
-            generate.IsEnabled = hasDuid && !certificateReady && !_discoveryInProgress;
+            generate.IsEnabled = showPreparation && !_discoveryInProgress;
         if (this.FindControl<Button>("InstallWgtButton") is { } install)
             install.IsEnabled = certificateReady && !_discoveryInProgress;
 
         if (this.FindControl<Border>("CertificateNormalPanel") is { } normalPanel)
-            normalPanel.IsVisible = hasDuid && !certificateReady;
+            normalPanel.IsVisible = showPreparation;
         if (this.FindControl<Border>("CertificateReadyPanel") is { } readyPanel)
-            readyPanel.IsVisible = hasDuid && certificateReady;
+            readyPanel.IsVisible = hasDuid && hasStoredCertificate;
         if (this.FindControl<StackPanel>("CertificateReadyIntro") is { } readyIntro)
-            readyIntro.IsVisible = hasDuid && certificateReady;
+            readyIntro.IsVisible = certificateReady;
         if (this.FindControl<TextBlock>("CertificatePageTitle") is { } certificateTitle)
-            certificateTitle.Text = InstallerLocalization.T(certificateReady
+            certificateTitle.Text = InstallerLocalization.T(hasStoredCertificate
                 ? "Installation certificate"
                 : "Prepare the installation certificate");
-        if (certificateReady && this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
+        if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
             certificateStatus.IsVisible = false;
-        if (hasDuid && certificateReady)
+        if (hasDuid && hasStoredCertificate)
         {
-            var details = _certificates.GetCertificateDetailsForTelevision(_selectedDuid!);
+            var details = _certificates.GetStoredAuthorCertificateDetails();
             if (this.FindControl<TextBlock>("CertificateIssuerDetails") is { } issuer)
-                issuer.Text = details?.Subject ?? InstallerLocalization.T("Signing certificate installed");
-            if (this.FindControl<TextBlock>("CertificateValidityDetails") is { } validity && details is not null)
-                validity.Text = InstallerLocalization.T("Issued: {0} · Expires: {1}")
+                issuer.Text = details?.Subject ?? storedName!;
+            if (this.FindControl<TextBlock>("CertificateValidityDetails") is { } validity)
+                validity.Text = details is null ? string.Empty : InstallerLocalization.T("Issued: {0} · Expires: {1}")
                     .Replace("{0}", details.Value.IssuedOn.ToLocalTime().ToString("d"))
                     .Replace("{1}", details.Value.ExpiresOn.ToLocalTime().ToString("d"));
         }
@@ -873,43 +885,108 @@ public sealed partial class MainWindow : Window
 
     private async Task<bool> ConfirmCertificateRegenerationAsync(string existingName)
     {
+        var localizedMessage = InstallerLocalization.T("The saved signing certificate is named {0}. Would you like to keep it or prepare a new Moonlight certificate?");
+        var parts = localizedMessage.Split("{0}", 2);
         var message = new TextBlock
         {
-            Text = InstallerLocalization.T("The saved signing certificate is named {0}, but Moonlight is required. Generate a new certificate?")
-                .Replace("{0}", existingName),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
-            Margin = new Avalonia.Thickness(20)
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            FontSize = 15
         };
-        var regenerateButton = new Button
+        message.Inlines ??= new Avalonia.Controls.Documents.InlineCollection();
+        message.Inlines.Add(new Avalonia.Controls.Documents.Run(parts[0]));
+        message.Inlines.Add(new Avalonia.Controls.Documents.Run(existingName) { FontWeight = Avalonia.Media.FontWeight.Bold });
+        if (parts.Length > 1)
+            message.Inlines.Add(new Avalonia.Controls.Documents.Run(parts[1]));
+
+        var certificateIcon = new Avalonia.Controls.Shapes.Path
         {
-            Content = InstallerLocalization.T("Generate new certificate"),
-            MinWidth = 170,
-            Classes = { "primary" }
+            Data = Avalonia.Media.Geometry.Parse("M 10,4 L 34,4 L 42,12 L 42,42 L 10,42 Z M 34,4 L 34,12 L 42,12 M 16,18 L 34,18 M 16,24 L 30,24"),
+            Stroke = Avalonia.Media.Brushes.White,
+            StrokeThickness = 2.8,
+            StrokeLineCap = Avalonia.Media.PenLineCap.Round,
+            Fill = Avalonia.Media.Brushes.Transparent,
+            Width = 48,
+            Height = 48,
+            Stretch = Avalonia.Media.Stretch.Uniform
+        };
+        var iconContainer = new Border
+        {
+            Width = 76,
+            Height = 76,
+            CornerRadius = new Avalonia.CornerRadius(16),
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#203B60")),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            Child = new Viewbox { Width = 44, Height = 44, Stretch = Avalonia.Media.Stretch.Uniform, Child = certificateIcon }
         };
         var keepButton = new Button
         {
             Content = InstallerLocalization.T("Keep existing certificate"),
-            MinWidth = 170
+            Width = 190, MinWidth = 190,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center
+        };
+        var newButton = new Button
+        {
+            Content = InstallerLocalization.T("Generate new certificate"),
+            Width = 190, MinWidth = 190,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Classes = { "primary" }
         };
         var buttons = new StackPanel
         {
             Orientation = Avalonia.Layout.Orientation.Horizontal,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
             Spacing = 12,
-            Margin = new Avalonia.Thickness(20, 0, 20, 20),
-            Children = { keepButton, regenerateButton }
+            Margin = new Avalonia.Thickness(0, 20, 0, 0),
+            Children = { keepButton, newButton }
+        };
+        var messageLayout = new Grid
+        {
+            ColumnDefinitions = new Avalonia.Controls.ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 20,
+            Children = { iconContainer, message }
+        };
+        Grid.SetColumn(message, 1);
+        var content = new StackPanel
+        {
+            Margin = new Avalonia.Thickness(26),
+            Spacing = 4,
+            Children = { messageLayout, buttons }
         };
         var dialog = new Window
         {
-            Title = InstallerLocalization.T("Certificate name mismatch"),
-            Width = 520,
+            Width = 596,
             SizeToContent = Avalonia.Controls.SizeToContent.Height,
             CanResize = false,
+            SystemDecorations = SystemDecorations.None,
+            ShowInTaskbar = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel { Children = { message, buttons } }
+            TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+            Background = Avalonia.Media.Brushes.Transparent,
+            Foreground = Avalonia.Media.Brushes.White,
+            Content = new Border
+            {
+                Margin = new Avalonia.Thickness(18),
+                Background = Avalonia.Media.Brushes.Transparent,
+                BoxShadow = new Avalonia.Media.BoxShadows(new Avalonia.Media.BoxShadow
+                {
+                    Blur = 28, OffsetY = 8,
+                    Color = Avalonia.Media.Color.Parse("#A0000000"),
+                    Spread = 2
+                }),
+                Child = new Border
+                {
+                    Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#17243A")),
+                    BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#40516D")),
+                    BorderThickness = new Avalonia.Thickness(1),
+                    CornerRadius = new Avalonia.CornerRadius(18),
+                    Child = content
+                }
+            }
         };
-        regenerateButton.Click += (_, _) => dialog.Close(true);
         keepButton.Click += (_, _) => dialog.Close(false);
+        newButton.Click += (_, _) => dialog.Close(true);
         var overlay = this.FindControl<Border>("ModalOverlay");
         if (overlay is not null) overlay.IsVisible = true;
         try
@@ -937,10 +1014,9 @@ public sealed partial class MainWindow : Window
         }
 
         var existingCertificateName = _certificates.GetStoredAuthorCertificateName(level);
-        var forceRegenerate = !string.IsNullOrWhiteSpace(existingCertificateName) &&
+        var forceRegenerate = _certificatePreparationSelected &&
+            !string.IsNullOrWhiteSpace(existingCertificateName) &&
             !string.Equals(existingCertificateName, CertificateProvisioningService.ProfileBaseName, StringComparison.OrdinalIgnoreCase);
-        if (forceRegenerate && !await ConfirmCertificateRegenerationAsync(existingCertificateName!))
-            return;
 
         if (button is not null) button.IsEnabled = false;
         if (status is not null)
