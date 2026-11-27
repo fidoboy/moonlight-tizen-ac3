@@ -149,7 +149,7 @@
                          IsChecked="True" />
             <RadioButton Grid.Column="1" Name="ForceGmWgtOption" GroupName="MoonlightWgtVariant"
                          HorizontalAlignment="Center" Content="Forced game mode package"
-                         ToolTip="Install the alternative package, which forces the metadata required by some TV models to enable Game Mode while Moonlight is running." />
+                         ToolTip="This alternative package forces the metadata required by some TV models to enable Game Mode while Moonlight is running. However, it may cause image issues at certain streaming resolutions on some TV models. If your TV is incompatible with this installation, use the normal package instead." />
           </Grid>
         </StackPanel>
 
