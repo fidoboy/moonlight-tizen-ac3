@@ -146,7 +146,6 @@ jobs:
           set -euo pipefail
           CHANGELOG_FILE="CHANGELOG.md"
           VERSIONED_ENTRY="$RUNNER_TEMP/version-changelog-entry.md"
-          CHANGELOG_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$GITHUB_SHA/CHANGELOG.md#v${RELEASE_VERSION//./}"
 
           # Extract only the requested version section, stopping before the next version heading.
           awk -v target="v$RELEASE_VERSION" '
