@@ -44,7 +44,7 @@ public sealed class SdbInstallationService
         if (packageId.Any(char.IsWhiteSpace))
             throw new InvalidDataException("El identificador de aplicación del WGT contiene espacios y no se puede enviar mediante SDB.");
 
-        progress?.Report($"Conectando por SDB a {televisionIp}:{sdbPort}…");
+        progress?.Report($"Connecting over the connection to {televisionIp}:{sdbPort}…");
         await using var device = new SdbTcpDevice(IPAddress.Parse(televisionIp), sdbPort);
         try
         {
@@ -72,7 +72,7 @@ public sealed class SdbInstallationService
         await using (var package = File.OpenRead(packagePath))
         {
             var transferProgress = new Progress<double>(fraction =>
-                progress?.Report($"Transfiriendo Moonlight.wgt… {Math.Clamp((int)Math.Round(fraction), 0, 100)} %"));
+                progress?.Report($"Transferring Moonlight.wgt… {Math.Clamp((int)Math.Round(fraction), 0, 100)} %"));
             await device.PushAsync(package, remotePath, transferProgress, cancellationToken).ConfigureAwait(false);
         }
 
@@ -85,7 +85,7 @@ public sealed class SdbInstallationService
             output.AppendLine(line);
             var match = InstallProgress.Match(line);
             if (match.Success && int.TryParse(match.Groups[1].Value, out var percent))
-                progress?.Report($"Instalando Moonlight… {Math.Clamp(percent, 0, 100)} %");
+                progress?.Report($"Installing Moonlight… {Math.Clamp(percent, 0, 100)} %");
         }
 
         var result = output.ToString();
