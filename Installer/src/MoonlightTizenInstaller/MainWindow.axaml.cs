@@ -136,8 +136,8 @@ public sealed partial class MainWindow : Window
             if (this.FindControl<TextBlock>($"StepLabel{number}") is { } label)
             {
                 label.Foreground = new Avalonia.Media.SolidColorBrush(
-                    Avalonia.Media.Color.Parse(number == _wizardStep ? "#F5F8FF" : "#ACBAD0"));
-                label.FontWeight = number == _wizardStep
+                    Avalonia.Media.Color.Parse(active ? "#F5F8FF" : "#ACBAD0"));
+                label.FontWeight = active
                     ? Avalonia.Media.FontWeight.SemiBold
                     : Avalonia.Media.FontWeight.Normal;
             }
@@ -541,10 +541,13 @@ public sealed partial class MainWindow : Window
             searching.IsVisible = false;
         if (this.FindControl<Border>("CertificateNormalPanel") is { } normalPanel)
             normalPanel.IsVisible = false;
-        if (this.FindControl<TextBlock>("CertificateStepLabel") is { } stepLabel)
-            stepLabel.Text = InstallerLocalization.T("PASO 4 · RESULTADO");
-        if (this.FindControl<TextBlock>("CertificatePageTitle") is { } title)
+        _installationFinished = true;
+        if (this.FindControl<TextBlock>("InstallationStepLabel") is { } stepLabel)
+            stepLabel.IsVisible = true;
+        if (this.FindControl<TextBlock>("InstallationPageTitle") is { } title)
             title.Text = InstallerLocalization.T("Resultado de la transferencia");
+        if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } progressPanel)
+            progressPanel.IsVisible = false;
         if (this.FindControl<TextBlock>("CertificatePageDescription") is { } description)
             description.IsVisible = false;
         if (this.FindControl<Grid>("TvStoreResultPanel") is { } resultPanel)
@@ -578,7 +581,7 @@ public sealed partial class MainWindow : Window
                 ? message
                 : $"{message}{Environment.NewLine}{Environment.NewLine}{InstallerLocalization.T(HideInternalProtocolNames(failureDetails))}";
         }
-        SetWizardStep(4);
+        SetWizardStep(5);
     }
 
     private async Task ContinueWithSdbInstallationAsync(DiscoveredTelevision device)
