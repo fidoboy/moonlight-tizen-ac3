@@ -144,9 +144,12 @@
                      Foreground="#D6E1F2" TextWrapping="Wrap" Margin="0,0,0,0" />
           <Grid ColumnDefinitions="*,*" Margin="36,-4,36,4">
             <RadioButton Grid.Column="0" Name="StandardWgtOption" GroupName="MoonlightWgtVariant"
-                         HorizontalAlignment="Center" Content="Normal package" IsChecked="True" />
+                         HorizontalAlignment="Center" Content="Normal package"
+                         ToolTip="Install the standard Moonlight package without forcing the TV into Game Mode."
+                         IsChecked="True" />
             <RadioButton Grid.Column="1" Name="ForceGmWgtOption" GroupName="MoonlightWgtVariant"
-                         HorizontalAlignment="Center" Content="Forced game mode package" />
+                         HorizontalAlignment="Center" Content="Forced game mode package"
+                         ToolTip="Install the variant that forces the TV into Game Mode while Moonlight is running." />
           </Grid>
         </StackPanel>
 
