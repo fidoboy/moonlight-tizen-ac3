@@ -74,8 +74,9 @@ namespace Apps2Samsung.Certificate
             if (!Directory.Exists(oldDir) || Directory.Exists(newDir))
                 return;
 
-            Directory.Move(oldDir, newDir);
+            // Copy the vault secret first; if the directory move fails, the old profile remains usable.
             CertificateSecrets.RenameProfile(oldName, newName);
+            Directory.Move(oldDir, newDir);
             // Ensure the renamed profile is represented in the automatic backup index/archive.
             CertificateBackups.Changed();
         }
