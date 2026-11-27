@@ -17,8 +17,8 @@ L’option recommandée est le **Moonlight Tizen Installer**. Exécutez-le sur u
 
 Ouvrez la [dernière version stable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) et téléchargez dans **Assets** le fichier adapté :
 
-- **Windows 64 bits :** `MoonlightTizenInstaller-win-x64.exe`
-- **Linux 64 bits :** `MoonlightTizenInstaller-linux-x64`
+- **Windows 64 bits :** `MoonlightTizenInstaller.exe`
+- **Linux 64 bits :** `MoonlightTizenInstaller`
 - **macOS Intel :** `MoonlightTizenInstaller-osx-x64`
 - **macOS Apple Silicon :** `MoonlightTizenInstaller-osx-arm64`
 
@@ -30,8 +30,8 @@ L’installateur est un fichier exécutable autonome qui contient déjà tout le
 - **macOS :** dans Finder, ouvrez **Téléchargements**, faites un clic droit (ou Ctrl-clic) sur le fichier et choisissez **Ouvrir**. Confirmez si nécessaire. Si macOS l’a bloqué, allez dans **Réglages Système → Confidentialité et sécurité**, repérez l’avis et choisissez **Ouvrir quand même**. Utilisez Intel sur les Mac Intel et ARM64 sur les Mac Apple Silicon.
 - **Linux :** ouvrez un terminal dans le dossier de téléchargement et exécutez :
   ```bash
-  chmod +x MoonlightTizenInstaller-linux-x64
-  ./MoonlightTizenInstaller-linux-x64
+  chmod +x MoonlightTizenInstaller
+  ./MoonlightTizenInstaller
   ```
   Vous pouvez aussi activer **Autoriser l’exécution du fichier comme un programme** dans le gestionnaire de fichiers, si disponible, puis ouvrir le fichier.
 
