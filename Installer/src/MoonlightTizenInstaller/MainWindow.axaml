@@ -46,12 +46,14 @@
                     HorizontalAlignment="Right" Spacing="2" Margin="0,-12,-16,0">
           <Button Width="36" Height="36" Padding="0" Classes="window-control"
                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                  ToolTip.Tip="Minimizar"
                   Click="OnMinimizeClick">
             <Border Width="14" Height="2" Background="#D6E1F2"
                     HorizontalAlignment="Center" VerticalAlignment="Center" />
           </Button>
           <Button Width="36" Height="36" Padding="0" Classes="window-control"
                   HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                  ToolTip.Tip="Cerrar"
                   Click="OnWindowCloseClick">
             <Path Data="M 4,4 L 12,12 M 12,4 L 4,12" Width="12" Height="12" Stretch="Uniform"
                   Stroke="#D6E1F2" StrokeThickness="1.4" />
