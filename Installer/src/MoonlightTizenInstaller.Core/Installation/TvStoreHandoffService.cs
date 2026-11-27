@@ -196,7 +196,7 @@ public sealed class TvStoreHandoffService
             if (!response.IsSuccessStatusCode || answer?["ok"]?.GetValue<bool>() != true)
             {
                 var reason = answer?["error"]?.GetValue<string>() ?? $"HTTP {(int)response.StatusCode}";
-                progress?.Report($"TV-Store ha rechazado el paquete: {reason}");
+                progress?.Report($"TV-Store rejected the package: {reason}");
                 return null;
             }
 
@@ -215,7 +215,7 @@ public sealed class TvStoreHandoffService
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            progress?.Report($"No se ha podido transferir el WGT a TV-Store: {ex.Message}");
+            progress?.Report($"Could not transfer the WGT to TV-Store: {ex.Message}");
             return null;
         }
     }
