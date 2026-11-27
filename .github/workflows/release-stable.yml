@@ -629,7 +629,7 @@ jobs:
     needs:
       - publish
       - validate-installer
-    runs-on: ${{ matrix.rid == 'win-x64' && 'windows-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.rid == 'win-x64' && 'windows-latest' || startsWith(matrix.rid, 'osx-') && 'macos-latest' || 'ubuntu-latest' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -666,6 +666,30 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Generate multi-resolution Windows icon
+        if: matrix.rid == 'win-x64'
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check Pillow
+          @'
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path("Installer/src/MoonlightTizenInstaller/Assets/moonlight-logo.png")
+          target = source.with_name("moonlight-multires.ico")
+          with Image.open(source) as image:
+              image.convert("RGBA").save(
+                  target,
+                  format="ICO",
+                  sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
+              )
+          with Image.open(target) as icon:
+              expected = {(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)}
+              actual = icon.ico.sizes()
+              if actual != expected:
+                  raise SystemExit(f"Unexpected ICO sizes: {sorted(actual)}")
+          print(f"Generated and validated {target}")
+          '@ | python -
       - name: Restore
         run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --runtime ${{ matrix.rid }}
 
@@ -697,22 +721,94 @@ jobs:
             }
           }
 
-      - name: Prepare single-file distribution
+      - name: Prepare Windows executable distribution
+        if: matrix.rid == 'win-x64'
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p artifacts/dist
-          executable="MoonlightTizenInstaller"
-          if [ "${{ matrix.rid }}" = "win-x64" ]; then
-            executable="MoonlightTizenInstaller.exe"
-          else
-            chmod +x "artifacts/publish/$executable"
-          fi
-          test -s "artifacts/publish/$executable"
-          cp "artifacts/publish/$executable" "artifacts/dist/$executable"
+          test -s artifacts/publish/MoonlightTizenInstaller.exe
+          cp artifacts/publish/MoonlightTizenInstaller.exe artifacts/dist/
           test "$(find artifacts/dist -maxdepth 1 -type f | wc -l)" -eq 1
 
-      - name: Upload installer executable
+      - name: Prepare Linux desktop distribution
+        if: matrix.rid == 'linux-x64'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y desktop-file-utils
+          package="artifacts/package-linux/MoonlightTizenInstaller"
+          mkdir -p "$package/share/applications" "$package/share/icons/hicolor/512x512/apps" artifacts/dist
+          install -m 755 artifacts/publish/MoonlightTizenInstaller "$package/MoonlightTizenInstaller"
+          install -m 755 Installer/packaging/linux/install.sh "$package/install.sh"
+          install -m 644 Installer/packaging/linux/MoonlightTizenInstaller.desktop "$package/share/applications/MoonlightTizenInstaller.desktop"
+          python3 -m pip install --disable-pip-version-check Pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path("Installer/src/MoonlightTizenInstaller/Assets/moonlight-logo.png")
+          target = Path("artifacts/package-linux/MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png")
+          with Image.open(source) as image:
+              image.convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS).save(target, format="PNG")
+          with Image.open(target) as icon:
+              if icon.size != (512, 512):
+                  raise SystemExit(f"Unexpected Linux icon dimensions: {icon.size}")
+          PY
+          desktop-file-validate "$package/share/applications/MoonlightTizenInstaller.desktop"
+          file "$package/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
+          tar -czf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
+          tar -tzf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz | grep -q 'MoonlightTizenInstaller/share/applications/MoonlightTizenInstaller.desktop'
+          tar -tzf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz | grep -q 'MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png'
+          test_home="$(mktemp -d)"
+          trap 'rm -rf "$test_home"' EXIT
+          HOME="$test_home" XDG_DATA_HOME="$test_home/.local/share" "$package/install.sh"
+          test -x "$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller"
+          test -L "$test_home/.local/bin/moonlight-tizen-installer"
+          test -s "$test_home/.local/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
+          desktop="$test_home/.local/share/applications/MoonlightTizenInstaller.desktop"
+          test -s "$desktop"
+          desktop-file-validate "$desktop"
+          grep -Fq "Exec=\\"$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller\\"" "$desktop"
+
+      - name: Prepare macOS application bundle
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          app="artifacts/dist/Moonlight Tizen Installer.app"
+          contents="$app/Contents"
+          mkdir -p "$contents/MacOS" "$contents/Resources" artifacts/dist
+          cp -a artifacts/publish/. "$contents/MacOS/"
+          chmod +x "$contents/MacOS/MoonlightTizenInstaller"
+          cp Installer/packaging/macos/Info.plist "$contents/Info.plist"
+
+          source_icon="Installer/src/MoonlightTizenInstaller/Assets/moonlight-logo.png"
+          iconset="$RUNNER_TEMP/MoonlightTizenInstaller.iconset"
+          mkdir -p "$iconset"
+          sips -z 16 16 "$source_icon" --out "$iconset/icon_16x16.png" >/dev/null
+          sips -z 32 32 "$source_icon" --out "$iconset/icon_16x16@2x.png" >/dev/null
+          sips -z 32 32 "$source_icon" --out "$iconset/icon_32x32.png" >/dev/null
+          sips -z 64 64 "$source_icon" --out "$iconset/icon_32x32@2x.png" >/dev/null
+          sips -z 128 128 "$source_icon" --out "$iconset/icon_128x128.png" >/dev/null
+          sips -z 256 256 "$source_icon" --out "$iconset/icon_128x128@2x.png" >/dev/null
+          sips -z 256 256 "$source_icon" --out "$iconset/icon_256x256.png" >/dev/null
+          sips -z 512 512 "$source_icon" --out "$iconset/icon_256x256@2x.png" >/dev/null
+          sips -z 512 512 "$source_icon" --out "$iconset/icon_512x512.png" >/dev/null
+          sips -z 1024 1024 "$source_icon" --out "$iconset/icon_512x512@2x.png" >/dev/null
+          iconutil -c icns "$iconset" -o "$contents/Resources/MoonlightTizenInstaller.icns"
+          verified_iconset="$RUNNER_TEMP/MoonlightTizenInstaller-verified.iconset"
+          iconutil -c iconset "$contents/Resources/MoonlightTizenInstaller.icns" -o "$verified_iconset"
+          test "$(find "$verified_iconset" -maxdepth 1 -name 'icon_*.png' | wc -l | tr -d ' ')" -eq 10
+          plutil -lint "$contents/Info.plist"
+          test -s "$contents/Resources/MoonlightTizenInstaller.icns"
+          test -x "$contents/MacOS/MoonlightTizenInstaller"
+          ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip
+          unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Info.plist'
+          unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Resources/MoonlightTizenInstaller.icns'
+
+      - name: Upload platform distribution
         uses: actions/upload-artifact@v6
         with:
           name: MoonlightTizenInstaller-${{ matrix.rid }}
@@ -781,9 +877,9 @@ jobs:
           cp release-inputs/Moonlight.wgt dist/Moonlight.wgt
           cp release-inputs/Moonlight-ForceGM.wgt dist/Moonlight-ForceGM.wgt
           cp installer-win-x64/MoonlightTizenInstaller.exe dist/MoonlightTizenInstaller.exe
-          cp installer-linux-x64/MoonlightTizenInstaller dist/MoonlightTizenInstaller
-          cp installer-osx-x64/MoonlightTizenInstaller dist/MoonlightTizenInstaller-osx-x64
-          cp installer-osx-arm64/MoonlightTizenInstaller dist/MoonlightTizenInstaller-osx-arm64
+          cp installer-linux-x64/MoonlightTizenInstaller-linux-x64.tar.gz dist/MoonlightTizenInstaller-linux-x64.tar.gz
+          cp installer-osx-x64/MoonlightTizenInstaller-osx-x64.zip dist/MoonlightTizenInstaller-osx-x64.zip
+          cp installer-osx-arm64/MoonlightTizenInstaller-osx-arm64.zip dist/MoonlightTizenInstaller-osx-arm64.zip
           cp release-inputs/release-notes.md "$RUNNER_TEMP/release-notes.md"
           test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 6
           test -s dist/Moonlight.wgt
@@ -806,9 +902,9 @@ jobs:
             dist/Moonlight.wgt
             dist/Moonlight-ForceGM.wgt
             dist/MoonlightTizenInstaller.exe
-            dist/MoonlightTizenInstaller
-            dist/MoonlightTizenInstaller-osx-x64
-            dist/MoonlightTizenInstaller-osx-arm64
+            dist/MoonlightTizenInstaller-linux-x64.tar.gz
+            dist/MoonlightTizenInstaller-osx-x64.zip
+            dist/MoonlightTizenInstaller-osx-arm64.zip
           body_path: ${{ runner.temp }}/release-notes.md
 
       - name: Remove unpublished release and tag if installer build or publication fails
