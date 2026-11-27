@@ -870,6 +870,57 @@ public sealed partial class MainWindow : Window
 
     private string? GetSelectedDuid() => _selectedDuid;
 
+    private async Task<bool> ConfirmCertificateRegenerationAsync(string existingName)
+    {
+        var message = new TextBlock
+        {
+            Text = InstallerLocalization.T("The saved signing certificate is named {0}, but Moonlight is required. Generate a new certificate?")
+                .Replace("{0}", existingName),
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            Margin = new Avalonia.Thickness(20)
+        };
+        var regenerateButton = new Button
+        {
+            Content = InstallerLocalization.T("Generate new certificate"),
+            MinWidth = 170,
+            Classes = { "primary" }
+        };
+        var keepButton = new Button
+        {
+            Content = InstallerLocalization.T("Keep existing certificate"),
+            MinWidth = 170
+        };
+        var buttons = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Spacing = 12,
+            Margin = new Avalonia.Thickness(20, 0, 20, 20),
+            Children = { keepButton, regenerateButton }
+        };
+        var dialog = new Window
+        {
+            Title = InstallerLocalization.T("Certificate name mismatch"),
+            Width = 520,
+            SizeToContent = Avalonia.Controls.SizeToContent.Height,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new StackPanel { Children = { message, buttons } }
+        };
+        regenerateButton.Click += (_, _) => dialog.Close(true);
+        keepButton.Click += (_, _) => dialog.Close(false);
+        var overlay = this.FindControl<Border>("ModalOverlay");
+        if (overlay is not null) overlay.IsVisible = true;
+        try
+        {
+            return await dialog.ShowDialog<bool>(this);
+        }
+        finally
+        {
+            if (overlay is not null) overlay.IsVisible = false;
+        }
+    }
+
     private async void OnGenerateCertificateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var duid = GetSelectedDuid();
@@ -883,6 +934,12 @@ public sealed partial class MainWindow : Window
                 status.Text = InstallerLocalization.T("A TV must be detected automatically before generating the certificate.");
             return;
         }
+
+        var existingCertificateName = _certificates.GetStoredAuthorCertificateName(level);
+        var forceRegenerate = !string.IsNullOrWhiteSpace(existingCertificateName) &&
+            !string.Equals(existingCertificateName, CertificateProvisioningService.ProfileBaseName, StringComparison.OrdinalIgnoreCase);
+        if (forceRegenerate && !await ConfirmCertificateRegenerationAsync(existingCertificateName!))
+            return;
 
         if (button is not null) button.IsEnabled = false;
         if (status is not null)
@@ -899,7 +956,8 @@ public sealed partial class MainWindow : Window
                 progress: message => Dispatcher.UIThread.Post(() =>
                 {
                     if (status is not null) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
-                }));
+                }),
+                forceRegenerate: forceRegenerate);
 
             if (status is not null)
                 status.Text = InstallerLocalization.T("The certificate has been generated and saved.");
