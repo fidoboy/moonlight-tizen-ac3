@@ -335,7 +335,7 @@
         <StackPanel Name="InstallationPage" Spacing="14" IsVisible="False">
           <TextBlock Text="PASO 5 · INSTALACIÓN" Foreground="#A7D3FF" FontSize="12"
                      FontWeight="Bold" />
-          <TextBlock Name="InstallationStepLabel" Text="PASO 5 · RESULTADO" Foreground="#A7D3FF" FontSize="12" FontWeight="Bold" IsVisible="False" />
+          <TextBlock Name="InstallationStepLabel" Text="STEP 5 · RESULT" Foreground="#A7D3FF" FontSize="12" FontWeight="Bold" IsVisible="False" />
           <TextBlock Name="InstallationPageTitle" Text="Instalar Moonlight" FontSize="28" FontWeight="Bold" />
           <Grid Name="TvStoreResultPanel" ColumnDefinitions="76,*" ColumnSpacing="20"
                 IsVisible="False" VerticalAlignment="Center" Margin="0,26,0,0">
