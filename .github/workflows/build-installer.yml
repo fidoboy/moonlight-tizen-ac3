@@ -150,7 +150,19 @@ jobs:
           install -m 755 artifacts/publish/MoonlightTizenInstaller "$package/MoonlightTizenInstaller"
           install -m 755 Installer/packaging/linux/install.sh "$package/install.sh"
           install -m 644 Installer/packaging/linux/MoonlightTizenInstaller.desktop "$package/share/applications/MoonlightTizenInstaller.desktop"
-          install -m 644 Installer/src/MoonlightTizenInstaller/Assets/moonlight-logo.png "$package/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
+          python3 -m pip install --disable-pip-version-check Pillow
+          python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+
+          source = Path("Installer/src/MoonlightTizenInstaller/Assets/moonlight-logo.png")
+          target = Path("artifacts/package-linux/MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png")
+          with Image.open(source) as image:
+              image.convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS).save(target, format="PNG")
+          with Image.open(target) as icon:
+              if icon.size != (512, 512):
+                  raise SystemExit(f"Unexpected Linux icon dimensions: {icon.size}")
+          PY
           desktop-file-validate "$package/share/applications/MoonlightTizenInstaller.desktop"
           file "$package/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
           tar -czf artifacts/dist/MoonlightTizenInstaller-linux-x64.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
@@ -193,6 +205,9 @@ jobs:
           sips -z 512 512 "$source_icon" --out "$iconset/icon_512x512.png" >/dev/null
           sips -z 1024 1024 "$source_icon" --out "$iconset/icon_512x512@2x.png" >/dev/null
           iconutil -c icns "$iconset" -o "$contents/Resources/MoonlightTizenInstaller.icns"
+          verified_iconset="$RUNNER_TEMP/MoonlightTizenInstaller-verified.iconset"
+          iconutil -c iconset "$contents/Resources/MoonlightTizenInstaller.icns" -o "$verified_iconset"
+          test "$(find "$verified_iconset" -maxdepth 1 -name 'icon_*.png' | wc -l | tr -d ' ')" -eq 10
           plutil -lint "$contents/Info.plist"
           test -s "$contents/Resources/MoonlightTizenInstaller.icns"
           test -x "$contents/MacOS/MoonlightTizenInstaller"
