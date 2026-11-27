@@ -622,19 +622,18 @@ public sealed partial class MainWindow : Window
                 // Continue to certificate preparation instead of leaving the user on
                 // step 3 with an unchanged Install button.
                 SetWizardStep(4);
+                SetTelevisionActionsEnabled(true);
+                var storedName = _certificates.GetStoredAuthorCertificateName();
+                if (!string.IsNullOrWhiteSpace(storedName) &&
+                    !string.Equals(storedName, CertificateProvisioningService.ProfileBaseName, StringComparison.OrdinalIgnoreCase))
+                {
+                    _certificatePreparationSelected = await ConfirmCertificateRegenerationAsync(storedName);
+                    SetTelevisionActionsEnabled(true);
+                }
             }
             else
             {
                 ShowDeveloperModeInstructions(InstallerLocalization.T("Could not connect to the TV. Enable or check Developer Mode and click Retry."));
-            }
-
-            SetTelevisionActionsEnabled(true);
-            var storedName = _certificates.GetStoredAuthorCertificateName();
-            if (!string.IsNullOrWhiteSpace(storedName) &&
-                !string.Equals(storedName, CertificateProvisioningService.ProfileBaseName, StringComparison.OrdinalIgnoreCase))
-            {
-                _certificatePreparationSelected = await ConfirmCertificateRegenerationAsync(storedName);
-                SetTelevisionActionsEnabled(true);
             }
         }
         catch (OperationCanceledException)
