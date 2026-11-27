@@ -322,7 +322,7 @@
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
               <Border Width="68" Height="68" CornerRadius="12" Background="#173F2B"
                       HorizontalAlignment="Center" VerticalAlignment="Center">
-                <Grid Width="52" Height="52" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid Width="60" Height="60" HorizontalAlignment="Center" VerticalAlignment="Center">
                   <Path Data="M 7,3 L 28,3 L 37,12 L 37,43 L 7,43 Z M 28,3 L 28,12 L 37,12 M 13,16 L 26,16 M 13,22 L 29,22 M 13,28 L 25,28"
                         Stroke="#65D99A" StrokeThickness="2.2" StrokeLineCap="Round" />
                   <Path Data="M 38,24 L 42,26 L 47,25 L 49,30 L 53,33 L 51,38 L 52,43 L 47,46 L 44,51 L 39,49 L 34,51 L 31,46 L 26,43 L 28,38 L 26,33 L 31,30 L 33,25 Z"
