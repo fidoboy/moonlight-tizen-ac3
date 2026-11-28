@@ -2123,13 +2123,6 @@ body[data-color-theme="black-orange"] #background-layer {
 #settings-right-pane .mdl-menu__container {
     width: calc(100% - 160px) !important;
 }
-/* MDL positions this generated menu container from the trigger button.
-   The opacity setting is nested 42px farther right (24px margin, 16px padding,
-   2px border), so reserve those extra 42px to keep its right edge aligned. */
-#performanceStatsOpacitySetting > .mdl-menu__container {
-    width: calc(100% - 202px) !important;
-}
-
 .settings-options {
     width: auto;
     height: auto;
@@ -2437,6 +2430,10 @@ body[data-color-theme="black-orange"] #background-layer {
     padding: 0 24px !important;
     min-width: 0;
 }
+.performanceStatsOpacityMenu {
+    height: 40px !important;
+}
+
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
 .performanceStatsOpacityMenu > #performanceStatsOpacityHighestValue {
     flex: 0 0 auto;
