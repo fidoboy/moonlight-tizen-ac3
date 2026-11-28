@@ -694,7 +694,7 @@ jobs:
         run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --runtime ${{ matrix.rid }}
 
       - name: Publish self-contained single-file executable
-        run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output artifacts/publish
+        run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore -p:Version=${{ needs.publish.outputs.version }} --output artifacts/publish
 
       - name: Smoke-test Windows application startup
         if: matrix.rid == 'win-x64'
