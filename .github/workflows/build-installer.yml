@@ -310,7 +310,17 @@ jobs:
             ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-avalonia.log
           if-no-files-found: warn
           retention-days: 7
+      - name: Upload macOS application ZIP
+        if: startsWith(matrix.rid, 'osx-')
+        uses: actions/upload-artifact@v6
+        with:
+          name: MoonlightTizenInstaller-${{ matrix.rid }}
+          path: artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload platform distribution
+        if: ${{ !startsWith(matrix.rid, 'osx-') }}
         uses: actions/upload-artifact@v6
         with:
           name: MoonlightTizenInstaller-${{ matrix.rid }}
