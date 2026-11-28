@@ -3,6 +3,18 @@
 All notable changes to the independently maintained fidoboy Moonlight Tizen fork are recorded here.
 
 
+## v1.3.3
+
+### Changed
+- **Linux AppImage distribution:** Packaged the installer as a self-contained AppImage with its desktop entry and application icon. On GNOME, the AppImage registers a local launcher and icon so the running window is correctly associated with its dock entry.
+- **macOS distribution:** Replaced ZIP archives with DMG disk images for Intel and Apple Silicon. Each image contains the application bundle with its icon and an Applications shortcut for drag-and-drop installation.
+
+### Fixed
+- **Windows installer download:** Corrected the published executable filename and its release download link so they match.
+- **Signing certificate profile handling:** Validate both author and distributor certificates before reusing a saved profile, including their validity periods. Correctly read certificate metadata from the profile's author certificate, support legacy profile locations, and let users keep an existing author certificate or explicitly generate a new Moonlight certificate.
+- **Installer result transition:** Fixed the progress controls' state when the wizard moves from the installation operation to its final result page.
+- **Windows startup diagnostics:** Record unhandled startup exceptions in a temporary log to make failures during application startup diagnosable.
+
 ## v1.3.2
 
 ### Added
