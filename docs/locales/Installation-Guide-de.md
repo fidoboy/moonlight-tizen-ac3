@@ -22,7 +22,7 @@ Empfohlen wird der **Moonlight Tizen Installer**. Führe ihn auf einem Windows-,
 - **macOS Intel:** `MoonlightTizenInstaller-osx-x64.dmg`
 - **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.dmg`
 
-Der Installer ist eine eigenständige ausführbare Datei, die bereits alles Notwendige enthält, einschließlich der TizenOS-App selbst, die auf deinen Fernseher übertragen wird.
+Die Windows- und Linux-Downloads sind eigenständige ausführbare Dateien. Jede macOS-DMG enthält das App-Bundle; öffne das Image und kopiere die App in den Ordner Programme.
 
 ### 2. Installer starten
 
