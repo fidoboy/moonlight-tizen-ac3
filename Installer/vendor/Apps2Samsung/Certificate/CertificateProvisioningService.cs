@@ -34,13 +34,14 @@ namespace Apps2Samsung.Certificate
     /// (author keypair kept, so already-installed apps stay overwritable).</item>
     /// <item>Otherwise a full profile is minted.</item>
     /// </list>
-    /// Public and Partner live in separate <c>"Jelly2Sams - Public/Partner"</c> folders so switching
+    /// Public and Partner live in separate <c>"Moonlight - Public/Partner"</c> folders so switching
     /// level never clobbers the other. A Samsung login (<see cref="ISamsungLoginService"/>) is only
     /// triggered when a regenerate/full-profile is actually needed.
     /// </summary>
     public sealed class CertificateProvisioningService
     {
-        public const string ProfileBaseName = "Jelly2Sams";
+        public const string ProfileBaseName = "Moonlight";
+        private const string LegacyProfileBaseName = "Jelly2Sams";
         private const string AuthorFileName = "author.p12";
         private const string DistributorFileName = "distributor.p12";
         private const int MaxDistributorDuids = 10;
@@ -54,9 +55,31 @@ namespace Apps2Samsung.Certificate
             _login = login;
         }
 
-        /// <summary>The profile folder name for a level, e.g. "Jelly2Sams - Partner".</summary>
+        /// <summary>The profile folder name for a level, e.g. "Moonlight - Partner".</summary>
         public static string ProfileName(CertificatePrivilegeLevel level) =>
             $"{ProfileBaseName} - {(level == CertificatePrivilegeLevel.Partner ? "Partner" : "Public")}";
+
+        /// <summary>
+        /// Moves the previous Apps2Samsung-named profile into the Moonlight namespace once, retaining
+        /// its author certificate and migrating its OS-vault password key.
+        /// </summary>
+        private static void MigrateLegacyProfile(string storePath, CertificatePrivilegeLevel level)
+        {
+            var suffix = level == CertificatePrivilegeLevel.Partner ? "Partner" : "Public";
+            var oldName = $"{LegacyProfileBaseName} - {suffix}";
+            var newName = ProfileName(level);
+            var oldDir = Path.Combine(storePath, oldName);
+            var newDir = Path.Combine(storePath, newName);
+
+            if (!Directory.Exists(oldDir) || Directory.Exists(newDir))
+                return;
+
+            // Copy the vault secret first; if the directory move fails, the old profile remains usable.
+            CertificateSecrets.RenameProfile(oldName, newName);
+            Directory.Move(oldDir, newDir);
+            // Ensure the renamed profile is represented in the automatic backup index/archive.
+            CertificateBackups.Changed();
+        }
 
         /// <summary>
         /// Ensure a signing profile for <paramref name="level"/> that covers <paramref name="deviceDuid"/>
@@ -86,6 +109,7 @@ namespace Apps2Samsung.Certificate
             if (!TizenDuid.IsValid(deviceDuid))
                 throw new ArgumentException("A valid TV DUID is required.", nameof(deviceDuid));
 
+            MigrateLegacyProfile(storePath, level);
             var profileName = ProfileName(level);
             var profileDir = Path.Combine(storePath, profileName);
 

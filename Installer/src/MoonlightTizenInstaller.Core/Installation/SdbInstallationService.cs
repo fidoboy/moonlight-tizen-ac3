@@ -44,7 +44,7 @@ public sealed class SdbInstallationService
         if (packageId.Any(char.IsWhiteSpace))
             throw new InvalidDataException("El identificador de aplicación del WGT contiene espacios y no se puede enviar mediante SDB.");
 
-        progress?.Report($"Conectando por SDB a {televisionIp}:{sdbPort}…");
+        progress?.Report($"Connecting over the connection to {televisionIp}:{sdbPort}…");
         await using var device = new SdbTcpDevice(IPAddress.Parse(televisionIp), sdbPort);
         try
         {
@@ -68,15 +68,15 @@ public sealed class SdbInstallationService
             : DefaultSdkToolPath;
         var remotePath = $"{sdkToolPath}/{RemotePackageName}";
 
-        progress?.Report("Transfiriendo el paquete firmado al televisor…");
+        progress?.Report("Transferring the signed package to the TV…");
         await using (var package = File.OpenRead(packagePath))
         {
             var transferProgress = new Progress<double>(fraction =>
-                progress?.Report($"Transfiriendo Moonlight.wgt… {Math.Clamp((int)Math.Round(fraction), 0, 100)} %"));
+                progress?.Report($"Transferring Moonlight.wgt… {Math.Clamp((int)Math.Round(fraction), 0, 100)} %"));
             await device.PushAsync(package, remotePath, transferProgress, cancellationToken).ConfigureAwait(false);
         }
 
-        progress?.Report("Solicitando la instalación a Tizen…");
+        progress?.Report("Requesting installation from Tizen…");
         var output = new StringBuilder();
         await foreach (var line in device.ShellCommandLinesAsync(
                            $"0 vd_appinstall {packageId} {remotePath}",
@@ -85,7 +85,7 @@ public sealed class SdbInstallationService
             output.AppendLine(line);
             var match = InstallProgress.Match(line);
             if (match.Success && int.TryParse(match.Groups[1].Value, out var percent))
-                progress?.Report($"Instalando Moonlight… {Math.Clamp(percent, 0, 100)} %");
+                progress?.Report($"Installing Moonlight… {Math.Clamp(percent, 0, 100)} %");
         }
 
         var result = output.ToString();
@@ -106,7 +106,7 @@ public sealed class SdbInstallationService
             throw new InvalidOperationException(
                 $"La TV no ha confirmado que la instalación haya terminado correctamente. Respuesta de SDB:{Environment.NewLine}{result.Trim()}");
 
-        progress?.Report("Tizen ha confirmado la instalación de Moonlight.");
+        progress?.Report("Tizen has confirmed the Moonlight installation.");
         return new InstallationResult(packageId, sdbPort, result.Trim());
     }
 

@@ -1,0 +1,17 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="MoonlightTizenInstaller.ResultStatusIcon"
+             Width="76" Height="76">
+  <Border x:Name="Circle" Width="76" Height="76" CornerRadius="38"
+          Background="#173F2B" BorderBrush="#35C978" BorderThickness="3"
+          HorizontalAlignment="Center" VerticalAlignment="Center">
+    <Viewbox Width="40" Height="40" Stretch="Uniform"
+             HorizontalAlignment="Center" VerticalAlignment="Center">
+      <Path x:Name="Mark" Width="24" Height="24"
+            Data="M 3,12 L 9,18 L 21,6"
+            Stretch="Uniform" Stroke="#35C978" StrokeThickness="2.8"
+            StrokeLineCap="Round" StrokeJoin="Round"
+            Fill="Transparent" />
+    </Viewbox>
+  </Border>
+</UserControl>

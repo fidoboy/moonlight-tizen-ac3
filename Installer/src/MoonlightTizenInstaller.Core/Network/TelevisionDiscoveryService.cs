@@ -270,7 +270,7 @@ public sealed class TelevisionDiscoveryService
             ports.Add(fallbackRelay);
         foreach (var port in ports)
         {
-            progress?.Report($"Obteniendo automáticamente el DUID mediante SDB en {television.IpAddress}:{port}…");
+            progress?.Report($"Automatically retrieving the DUID over the connection at {television.IpAddress}:{port}…");
             if (!await IsTcpPortOpenAsync(address, port, cancellationToken).ConfigureAwait(false))
                 continue;
 

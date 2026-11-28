@@ -22,6 +22,7 @@
       <Setter Property="FontWeight" Value="SemiBold" />
     </Style>
     <Style Selector="Button:pointerover">
+      <Setter Property="Cursor" Value="Hand" />
       <Setter Property="Background" Value="#203554" />
       <Setter Property="BorderBrush" Value="#78B8FF" />
     </Style>
@@ -72,6 +73,18 @@
     </Style>
     <Style Selector="ProgressBar">
       <Setter Property="Foreground" Value="#78B8FF" />
+    </Style>
+    <Style Selector="RadioButton:pointerover">
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ListBoxItem:pointerover">
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ComboBox:pointerover">
+      <Setter Property="Cursor" Value="Hand" />
+    </Style>
+    <Style Selector="ComboBoxItem:pointerover">
+      <Setter Property="Cursor" Value="Hand" />
     </Style>
     <Style Selector="RadioButton:checked">
       <Setter Property="Foreground" Value="#F5F8FF" />

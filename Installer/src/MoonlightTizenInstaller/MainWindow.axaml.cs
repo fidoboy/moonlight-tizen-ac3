@@ -1,3 +1,4 @@
+using Apps2Samsung.Certificate;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.VisualTree;
@@ -39,6 +40,8 @@ public sealed partial class MainWindow : Window
     private string? _signedPackagePathForRetry;
     private string? _signedPackageDirectoryForRetry;
     private bool _manualLanguageSelected;
+    private bool _certificatePreparationSelected;
+    private bool _existingCertificateKept;
     private int _wizardStep = 1;
 
     public MainWindow(CertificateManager certificates, TelevisionDiscoveryService discovery)
@@ -48,6 +51,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Closed += (_, _) => CleanupRetryPackage();
         InstallerLocalization.Apply(this);
+        ApplyInstallerFooterVersion();
         if (!InstallerLocalization.HasSupportedSystemLocale)
         {
             if (this.FindControl<StackPanel>("WelcomePage") is { } welcome)
@@ -77,6 +81,16 @@ public sealed partial class MainWindow : Window
         };
     }
 
+    private void ApplyInstallerFooterVersion()
+    {
+        var version = typeof(MainWindow).Assembly.GetName().Version?.ToString(3);
+        if (string.IsNullOrWhiteSpace(version))
+            return;
+
+        if (this.FindControl<TextBlock>("InstallerFooterLabel") is { } footer)
+            footer.Text = $"{InstallerLocalization.T("Moonlight Tizen · Installer")} v{version}";
+    }
+
     private void InitializeComponent()
     {
         AvaloniaXamlLoader.Load(this);
@@ -85,8 +99,7 @@ public sealed partial class MainWindow : Window
             _brandBitmap = new Bitmap(logoStream);
         if (this.FindControl<Image>("MoonlightBrandLogo") is { } logo)
             logo.Source = _brandBitmap;
-        using (var iconStream = AssetLoader.Open(new Uri("avares://MoonlightTizenInstaller/Assets/moonlight.ico")))
-            _windowIcon = Icon = new WindowIcon(iconStream);
+        _windowIcon = Icon = new WindowIcon(_brandBitmap!);
 
         if (this.FindControl<Button>("FinishTvStoreHandoffButton") is { } finishButton)
             finishButton.Click += OnFinishTvStoreHandoffClick;
@@ -101,6 +114,7 @@ public sealed partial class MainWindow : Window
         InstallerLocalization.SelectLocale(index);
         _manualLanguageSelected = true;
         InstallerLocalization.Apply(this);
+        ApplyInstallerFooterVersion();
         if (this.FindControl<Button>("WizardNextButton") is { } startButton)
             startButton.IsEnabled = true;
     }
@@ -136,8 +150,8 @@ public sealed partial class MainWindow : Window
             if (this.FindControl<TextBlock>($"StepLabel{number}") is { } label)
             {
                 label.Foreground = new Avalonia.Media.SolidColorBrush(
-                    Avalonia.Media.Color.Parse(number == _wizardStep ? "#F5F8FF" : "#ACBAD0"));
-                label.FontWeight = number == _wizardStep
+                    Avalonia.Media.Color.Parse(active ? "#F5F8FF" : "#ACBAD0"));
+                label.FontWeight = active
                     ? Avalonia.Media.FontWeight.SemiBold
                     : Avalonia.Media.FontWeight.Normal;
             }
@@ -163,14 +177,14 @@ public sealed partial class MainWindow : Window
             // Step 5 is a result-only page: the "Finish" action is never shown.
             next.IsVisible = _wizardStep < 5 && (!_tvStoreHandoff || _wizardStep == 4);
             next.Content = InstallerLocalization.T(_tvStoreHandoff
-                ? "Finalizar"
+                ? "Finish"
                 : _wizardStep switch
                 {
-                    1 => "Comenzar",
+                    1 => "Start",
                     2 => "Next",
                     3 => "Next",
-                    4 => "Instalar",
-                    _ => "Finalizar"
+                    4 => "Install",
+                    _ => "Finish"
                 });
             next.IsEnabled = !_discoveryInProgress &&
                 ((_tvStoreHandoff && _wizardStep == 4) || (_wizardStep switch
@@ -178,7 +192,8 @@ public sealed partial class MainWindow : Window
                     1 => InstallerLocalization.HasSupportedSystemLocale || _manualLanguageSelected,
                     2 => !_televisionDiscoveryFailed,
                     3 => _selectedTelevision is { IsDeveloperModeIpValid: true } && !_tvStoreHandoff,
-                    4 => TizenDuid.IsValid(_selectedDuid) && _certificates.IsReadyForTelevision(_selectedDuid!),
+                    4 => TizenDuid.IsValid(_selectedDuid) && (_certificates.IsReadyForTelevision(_selectedDuid!) ||
+                        (_existingCertificateKept && !string.IsNullOrWhiteSpace(_certificates.GetStoredAuthorCertificateName()))),
                     _ => _installationFinished
                 }));
         }
@@ -282,20 +297,20 @@ public sealed partial class MainWindow : Window
 
         var message = new TextBlock
         {
-            Text = InstallerLocalization.T($"El paquete {resourceName} no está integrado en este ejecutable o está dañado. Descarga de nuevo el instalador."),
+            Text = InstallerLocalization.T($"The {resourceName} package is missing from this executable or is damaged. Download the installer again."),
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
             Margin = new Avalonia.Thickness(20)
         };
         var closeButton = new Button
         {
-            Content = InstallerLocalization.T("Aceptar"),
+            Content = InstallerLocalization.T("OK"),
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right,
             MinWidth = 100,
             Margin = new Avalonia.Thickness(20, 0, 20, 20)
         };
         var dialog = new Window
         {
-            Title = InstallerLocalization.T("No se puede iniciar Moonlight Tizen Installer"),
+            Title = InstallerLocalization.T("Moonlight Tizen Installer could not be started"),
             Width = 480,
             SizeToContent = Avalonia.Controls.SizeToContent.Height,
             CanResize = false,
@@ -339,7 +354,7 @@ public sealed partial class MainWindow : Window
         if (foundList is not null) foundList.Children.Clear();
         if (discoveryHint is not null)
         {
-            discoveryHint.Text = InstallerLocalization.T("Los televisores de la red local se detectan automáticamente.");
+            discoveryHint.Text = InstallerLocalization.T("TVs on the local network are detected automatically.");
             discoveryHint.IsVisible = true;
         }
         if (searching is not null) searching.IsVisible = true;
@@ -398,7 +413,7 @@ public sealed partial class MainWindow : Window
                 if (this.FindControl<TextBlock>("TelevisionPageTitle") is { } resultPageTitle)
                     resultPageTitle.Text = InstallerLocalization.T("No TV was found on the network");
                 ShowDeveloperModeInstructions(
-                    InstallerLocalization.T("No se ha detectado ninguna TV con TizenOS en la red local. Comprueba que está encendida y conectada a la misma red que este equipo. Para continuar será necesario activar Developer Mode y volver a detectar el televisor."));
+                    InstallerLocalization.T("No TizenOS TV was detected on the local network. Make sure it is powered on and connected to the same network as this computer. Enable Developer Mode and run detection again."));
                 return;
             }
 
@@ -409,7 +424,7 @@ public sealed partial class MainWindow : Window
                 foreach (var device in devices)
                 {
                     if (searchStatus is not null)
-                        searchStatus.Text = InstallerLocalization.T("Comprobando opciones de instalación en {0}…").Replace("{0}", device.IpAddress);
+                        searchStatus.Text = InstallerLocalization.T("Checking installation options on {0}…").Replace("{0}", device.IpAddress);
                     if (!await _tvStoreInstaller.IsInstalledAsync(device.IpAddress))
                         continue;
 
@@ -424,7 +439,7 @@ public sealed partial class MainWindow : Window
                     _tvStoreHandoff = true;
                     _selectedTelevision = device;
                     if (searchStatus is not null)
-                        searchStatus.Text = InstallerLocalization.T("Transfiriendo Moonlight a TV-Store…");
+                        searchStatus.Text = InstallerLocalization.T("Sending Moonlight to TV-Store…");
 
                     try
                     {
@@ -490,11 +505,11 @@ public sealed partial class MainWindow : Window
         }
         catch (OperationCanceledException)
         {
-            ShowDeveloperModeInstructions(InstallerLocalization.T("La búsqueda no se ha completado. Comprueba que el televisor está encendido y conectado a la red y vuelve a intentarlo."));
+            ShowDeveloperModeInstructions(InstallerLocalization.T("The search did not complete. Make sure the TV is on and connected to the network, then try again."));
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions(InstallerLocalization.T($"No se ha podido completar la detección ({ex.Message}). Comprueba la conexión de red y vuelve a intentarlo."));
+            ShowDeveloperModeInstructions(InstallerLocalization.T($"Detection could not be completed ({ex.Message}). Check the network connection and try again."));
         }
         finally
         {
@@ -516,11 +531,11 @@ public sealed partial class MainWindow : Window
         if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
         var useRelay = _selectedTelevision?.UsesTvStoreRelay == true;
         if (this.FindControl<TextBlock>("HostIpAddress") is { } hostIp)
-            hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? InstallerLocalization.T("No se ha podido determinar una IPv4 privada");
+            hostIp.Text = _discovery.GetDeveloperModeHostIp(useRelay) ?? InstallerLocalization.T("Could not determine a private IPv4 address");
         if (this.FindControl<TextBlock>("DeveloperModeHostIpDescription") is { } hostIpDescription)
             hostIpDescription.Text = useRelay
                 ? InstallerLocalization.T("Enter exactly 127.0.0.1 in Host PC IP:")
-                : InstallerLocalization.T("Enter this computer's IPv4 address in Host PC IP:");
+                : InstallerLocalization.T("Enter this computer’s IPv4 address in Host PC IP:");
         SetWizardStep(2);
     }
 
@@ -541,55 +556,46 @@ public sealed partial class MainWindow : Window
             searching.IsVisible = false;
         if (this.FindControl<Border>("CertificateNormalPanel") is { } normalPanel)
             normalPanel.IsVisible = false;
-        if (this.FindControl<TextBlock>("CertificateStepLabel") is { } stepLabel)
-            stepLabel.Text = InstallerLocalization.T("PASO 4 · RESULTADO");
-        if (this.FindControl<TextBlock>("CertificatePageTitle") is { } title)
-            title.Text = InstallerLocalization.T("Resultado de la transferencia");
+        _installationFinished = true;
+        if (this.FindControl<TextBlock>("InstallationStepLabel") is { } stepLabel)
+            stepLabel.IsVisible = true;
+        if (this.FindControl<TextBlock>("InstallationPageTitle") is { } title)
+            title.Text = InstallerLocalization.T("Transfer result");
+        if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } progressPanel)
+            progressPanel.IsVisible = false;
         if (this.FindControl<TextBlock>("CertificatePageDescription") is { } description)
             description.IsVisible = false;
         if (this.FindControl<Grid>("TvStoreResultPanel") is { } resultPanel)
             resultPanel.IsVisible = true;
-        if (this.FindControl<Border>("TvStoreResultIconCircle") is { } iconCircle)
-        {
-            var statusColor = Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62");
-            iconCircle.Background = new Avalonia.Media.SolidColorBrush(
-                Avalonia.Media.Color.Parse(success ? "#173F2B" : "#4A2025"));
-            iconCircle.BorderBrush = new Avalonia.Media.SolidColorBrush(statusColor);
-            iconCircle.BorderThickness = new Avalonia.Thickness(3);
-        }
-        if (this.FindControl<Avalonia.Controls.Shapes.Path>("TvStoreResultIcon") is { } icon)
-        {
-            icon.Data = Avalonia.Media.Geometry.Parse(success
-                ? "M 3,12 L 9,18 L 21,6"
-                : "M 6,6 L 18,18 M 18,6 L 6,18");
-            icon.Stroke = new Avalonia.Media.SolidColorBrush(
-                Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
-        }
+        if (this.FindControl<ResultStatusIcon>("TvStoreResultStatusIcon") is { } statusIcon)
+            statusIcon.IsSuccess = success;
         if (this.FindControl<TextBlock>("TvStoreResultTitle") is { } resultTitle)
             resultTitle.Text = InstallerLocalization.T(success
-                ? "Transferencia completada"
-                : "No se ha podido transferir el paquete");
+                ? "Transfer complete"
+                : "The package could not be transferred");
         if (this.FindControl<TextBlock>("TvStoreResultMessage") is { } resultMessage)
         {
             var message = InstallerLocalization.T(success
-                ? "Moonlight para Tizen se ha transferido correctamente a TV-Store. Para completar la instalación, acepta el mensaje de confirmación que aparecerá en la televisión. Si no aparece, abre TV-Store en el televisor y confirma allí la instalación."
-                : "No se ha podido entregar Moonlight.wgt a TV-Store y la aplicación no se ha instalado. Comprueba que el televisor sigue conectado y vuelve a ejecutar el instalador. Si prefieres utilizar la instalación normal, rechaza la opción de TV-Store cuando vuelva a aparecer.");
+                ? "Moonlight for Tizen was successfully transferred to TV-Store. To complete installation, accept the confirmation prompt on your TV. If it does not appear, open TV-Store on the television and confirm the installation there."
+                : "Moonlight.wgt could not be delivered to TV-Store, so the application was not installed. Check that the TV is still connected and run the installer again. To use the normal installation route, decline TV-Store when prompted again.");
             resultMessage.Text = string.IsNullOrWhiteSpace(failureDetails)
                 ? message
                 : $"{message}{Environment.NewLine}{Environment.NewLine}{InstallerLocalization.T(HideInternalProtocolNames(failureDetails))}";
         }
-        SetWizardStep(4);
+        SetWizardStep(5);
     }
 
     private async Task ContinueWithSdbInstallationAsync(DiscoveredTelevision device)
     {
         _selectedTelevision = device;
         _selectedDuid = null;
+        _certificatePreparationSelected = false;
+        _existingCertificateKept = false;
         _tvStoreHandoff = false;
         if (this.FindControl<StackPanel>("TvStoreHandoffPanel") is { } handoffPanel) handoffPanel.IsVisible = false;
         if (this.FindControl<StackPanel>("TelevisionSearchingPanel") is { } searching) searching.IsVisible = true;
         if (this.FindControl<TextBlock>("TelevisionSearchStatus") is { } searchStatus)
-            searchStatus.Text = InstallerLocalization.T("Preparando la instalación en el televisor…");
+            searchStatus.Text = InstallerLocalization.T("Preparing installation on the TV…");
 
         var progress = new Progress<string>(message =>
             Dispatcher.UIThread.Post(() =>
@@ -607,7 +613,7 @@ public sealed partial class MainWindow : Window
             if (TizenDuid.IsValid(withDuid.Duid))
             {
                 if (this.FindControl<StackPanel>("TelevisionActivationPanel") is { } activation) activation.IsVisible = false;
-                var connectionMessage = InstallerLocalization.T("Conexión preparada con la TV ({0}).").Replace("{0}", withDuid.IpAddress);
+                var connectionMessage = InstallerLocalization.T("Connection to the TV is ready ({0}).").Replace("{0}", withDuid.IpAddress);
                 if (this.FindControl<TextBlock>("ConnectionSummary") is { } summary)
                     summary.Text = connectionMessage;
                 if (this.FindControl<TextBlock>("TelevisionDiscoveryStatus") is { } status)
@@ -616,21 +622,28 @@ public sealed partial class MainWindow : Window
                 // Continue to certificate preparation instead of leaving the user on
                 // step 3 with an unchanged Install button.
                 SetWizardStep(4);
+                SetTelevisionActionsEnabled(true);
+                var storedName = _certificates.GetStoredAuthorCertificateName();
+                if (!string.IsNullOrWhiteSpace(storedName) &&
+                    !string.Equals(storedName, CertificateProvisioningService.ProfileBaseName, StringComparison.OrdinalIgnoreCase))
+                {
+                    _certificatePreparationSelected = await ConfirmCertificateRegenerationAsync(storedName);
+                    _existingCertificateKept = !_certificatePreparationSelected;
+                    SetTelevisionActionsEnabled(true);
+                }
             }
             else
             {
-                ShowDeveloperModeInstructions(InstallerLocalization.T("No se ha podido establecer la conexión con el televisor. Activa o revisa Developer Mode y pulsa Reintentar."));
+                ShowDeveloperModeInstructions(InstallerLocalization.T("Could not connect to the TV. Enable or check Developer Mode and click Retry."));
             }
-
-            SetTelevisionActionsEnabled(true);
         }
         catch (OperationCanceledException)
         {
-            ShowDeveloperModeInstructions(InstallerLocalization.T("La conexión no se ha completado. Comprueba la configuración de Developer Mode y pulsa Reintentar."));
+            ShowDeveloperModeInstructions(InstallerLocalization.T("The connection was not completed. Check the Developer Mode settings and click Retry."));
         }
         catch (Exception ex)
         {
-            ShowDeveloperModeInstructions(InstallerLocalization.T($"No se ha podido preparar la instalación ({ex.Message}). Comprueba la conexión y pulsa Reintentar."));
+            ShowDeveloperModeInstructions(InstallerLocalization.T($"Installation could not be prepared ({ex.Message}). Check the connection and click Retry."));
         }
         finally
         {
@@ -705,13 +718,9 @@ public sealed partial class MainWindow : Window
                 Child = storeIcon
             }
         };
-        storeIcon.Width = 48;
-        storeIcon.Height = 48;
-        storeIcon.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center;
-        storeIcon.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center;
         var useButton = new Button
         {
-            Content = InstallerLocalization.T("Sí, utilizar TV-Store"),
+            Content = InstallerLocalization.T("Yes, use TV-Store"),
             Width = 190,
             MinWidth = 190,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
@@ -832,31 +841,35 @@ public sealed partial class MainWindow : Window
     {
         var hasDuid = enabled && TizenDuid.IsValid(_selectedDuid);
         var certificateReady = hasDuid && _certificates.IsReadyForTelevision(_selectedDuid!);
+        var storedName = hasDuid ? _certificates.GetStoredAuthorCertificateName() : null;
+        var hasStoredCertificate = !string.IsNullOrWhiteSpace(storedName) && !_certificatePreparationSelected;
+        var canInstall = certificateReady || (_existingCertificateKept && hasStoredCertificate);
+        var showPreparation = hasDuid && !hasStoredCertificate;
 
         if (this.FindControl<Button>("GenerateCertificateButton") is { } generate)
-            generate.IsEnabled = hasDuid && !certificateReady && !_discoveryInProgress;
+            generate.IsEnabled = showPreparation && !_discoveryInProgress;
         if (this.FindControl<Button>("InstallWgtButton") is { } install)
-            install.IsEnabled = certificateReady && !_discoveryInProgress;
+            install.IsEnabled = canInstall && !_discoveryInProgress;
 
         if (this.FindControl<Border>("CertificateNormalPanel") is { } normalPanel)
-            normalPanel.IsVisible = hasDuid && !certificateReady;
+            normalPanel.IsVisible = showPreparation;
         if (this.FindControl<Border>("CertificateReadyPanel") is { } readyPanel)
-            readyPanel.IsVisible = hasDuid && certificateReady;
+            readyPanel.IsVisible = hasDuid && hasStoredCertificate;
         if (this.FindControl<StackPanel>("CertificateReadyIntro") is { } readyIntro)
-            readyIntro.IsVisible = hasDuid && certificateReady;
+            readyIntro.IsVisible = canInstall;
         if (this.FindControl<TextBlock>("CertificatePageTitle") is { } certificateTitle)
-            certificateTitle.Text = InstallerLocalization.T(certificateReady
-                ? "Certificado de instalación"
-                : "Preparar el certificado de instalación");
-        if (certificateReady && this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
+            certificateTitle.Text = InstallerLocalization.T(hasStoredCertificate
+                ? "Installation certificate"
+                : "Prepare the installation certificate");
+        if (this.FindControl<TextBlock>("CertificateOperationStatus") is { } certificateStatus)
             certificateStatus.IsVisible = false;
-        if (hasDuid && certificateReady)
+        if (hasDuid && hasStoredCertificate)
         {
-            var details = _certificates.GetCertificateDetailsForTelevision(_selectedDuid!);
+            var details = _certificates.GetStoredAuthorCertificateDetails();
             if (this.FindControl<TextBlock>("CertificateIssuerDetails") is { } issuer)
-                issuer.Text = details?.Subject ?? InstallerLocalization.T("Certificado de firma instalado");
-            if (this.FindControl<TextBlock>("CertificateValidityDetails") is { } validity && details is not null)
-                validity.Text = InstallerLocalization.T("Emitido: {0} · Caduca: {1}")
+                issuer.Text = details?.Subject ?? storedName!;
+            if (this.FindControl<TextBlock>("CertificateValidityDetails") is { } validity)
+                validity.Text = details is null ? string.Empty : InstallerLocalization.T("Issued: {0} · Expires: {1}")
                     .Replace("{0}", details.Value.IssuedOn.ToLocalTime().ToString("d"))
                     .Replace("{1}", details.Value.ExpiresOn.ToLocalTime().ToString("d"));
         }
@@ -866,6 +879,122 @@ public sealed partial class MainWindow : Window
     }
 
     private string? GetSelectedDuid() => _selectedDuid;
+
+    private async Task<bool> ConfirmCertificateRegenerationAsync(string existingName)
+    {
+        var localizedMessage = InstallerLocalization.T("The saved signing certificate is named {0}. Would you like to keep it or prepare a new Moonlight certificate?");
+        var parts = localizedMessage.Split("{0}", 2);
+        var message = new TextBlock
+        {
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            FontSize = 15
+        };
+        message.Inlines ??= new Avalonia.Controls.Documents.InlineCollection();
+        message.Inlines.Add(new Avalonia.Controls.Documents.Run(parts[0]));
+        message.Inlines.Add(new Avalonia.Controls.Documents.Run(existingName) { FontWeight = Avalonia.Media.FontWeight.Bold });
+        if (parts.Length > 1)
+            message.Inlines.Add(new Avalonia.Controls.Documents.Run(parts[1]));
+
+        var certificateIcon = new Avalonia.Controls.Shapes.Path
+        {
+            Data = Avalonia.Media.Geometry.Parse("M 10,4 L 34,4 L 42,12 L 42,42 L 10,42 Z M 34,4 L 34,12 L 42,12 M 16,18 L 34,18 M 16,24 L 30,24"),
+            Stroke = Avalonia.Media.Brushes.White,
+            StrokeThickness = 2.8,
+            StrokeLineCap = Avalonia.Media.PenLineCap.Round,
+            Fill = Avalonia.Media.Brushes.Transparent,
+            Width = 48,
+            Height = 48,
+            Stretch = Avalonia.Media.Stretch.Uniform
+        };
+        var iconContainer = new Border
+        {
+            Width = 76,
+            Height = 76,
+            CornerRadius = new Avalonia.CornerRadius(16),
+            Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#203B60")),
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+            Child = new Viewbox { Width = 44, Height = 44, Stretch = Avalonia.Media.Stretch.Uniform, Child = certificateIcon }
+        };
+        var keepButton = new Button
+        {
+            Content = InstallerLocalization.T("Keep existing"),
+            Width = 230, MinWidth = 230,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center
+        };
+        var newButton = new Button
+        {
+            Content = InstallerLocalization.T("Generate new"),
+            Width = 230, MinWidth = 230,
+            HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Classes = { "primary" }
+        };
+        var buttons = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+            Spacing = 12,
+            Margin = new Avalonia.Thickness(0, 20, 0, 0),
+            Children = { keepButton, newButton }
+        };
+        var messageLayout = new Grid
+        {
+            ColumnDefinitions = new Avalonia.Controls.ColumnDefinitions("Auto,*"),
+            ColumnSpacing = 20,
+            Children = { iconContainer, message }
+        };
+        Grid.SetColumn(message, 1);
+        var content = new StackPanel
+        {
+            Margin = new Avalonia.Thickness(26),
+            Spacing = 4,
+            Children = { messageLayout, buttons }
+        };
+        var dialog = new Window
+        {
+            Width = 660,
+            SizeToContent = Avalonia.Controls.SizeToContent.Height,
+            CanResize = false,
+            SystemDecorations = SystemDecorations.None,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            TransparencyLevelHint = new[] { WindowTransparencyLevel.Transparent },
+            Background = Avalonia.Media.Brushes.Transparent,
+            Foreground = Avalonia.Media.Brushes.White,
+            Content = new Border
+            {
+                Margin = new Avalonia.Thickness(18),
+                Background = Avalonia.Media.Brushes.Transparent,
+                BoxShadow = new Avalonia.Media.BoxShadows(new Avalonia.Media.BoxShadow
+                {
+                    Blur = 28, OffsetY = 8,
+                    Color = Avalonia.Media.Color.Parse("#A0000000"),
+                    Spread = 2
+                }),
+                Child = new Border
+                {
+                    Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#17243A")),
+                    BorderBrush = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#40516D")),
+                    BorderThickness = new Avalonia.Thickness(1),
+                    CornerRadius = new Avalonia.CornerRadius(18),
+                    Child = content
+                }
+            }
+        };
+        keepButton.Click += (_, _) => dialog.Close(false);
+        newButton.Click += (_, _) => dialog.Close(true);
+        var overlay = this.FindControl<Border>("ModalOverlay");
+        if (overlay is not null) overlay.IsVisible = true;
+        try
+        {
+            return await dialog.ShowDialog<bool>(this);
+        }
+        finally
+        {
+            if (overlay is not null) overlay.IsVisible = false;
+        }
+    }
 
     private async void OnGenerateCertificateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -877,15 +1006,20 @@ public sealed partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
             if (status is not null)
-                status.Text = InstallerLocalization.T("Es necesario detectar automáticamente un televisor antes de generar el certificado.");
+                status.Text = InstallerLocalization.T("A TV must be detected automatically before generating the certificate.");
             return;
         }
+
+        var existingCertificateName = _certificates.GetStoredAuthorCertificateName(level);
+        var forceRegenerate = _certificatePreparationSelected &&
+            !string.IsNullOrWhiteSpace(existingCertificateName) &&
+            !string.Equals(existingCertificateName, CertificateProvisioningService.ProfileBaseName, StringComparison.OrdinalIgnoreCase);
 
         if (button is not null) button.IsEnabled = false;
         if (status is not null)
         {
             status.IsVisible = true;
-            status.Text = InstallerLocalization.T("Abriendo el sitio web para iniciar sesión…");
+            status.Text = InstallerLocalization.T("Opening the website to sign in…");
         }
 
         try
@@ -896,18 +1030,22 @@ public sealed partial class MainWindow : Window
                 progress: message => Dispatcher.UIThread.Post(() =>
                 {
                     if (status is not null) status.Text = InstallerLocalization.T(HideInternalProtocolNames(message));
-                }));
+                }),
+                forceRegenerate: forceRegenerate);
 
-            if (status is not null)
-                status.Text = InstallerLocalization.T("El certificado se ha generado y guardado.");
+            // The new profile is now saved. Switch from the regeneration/preparation
+            // state to the same ready-certificate state used for an existing profile.
+            _certificatePreparationSelected = false;
+            _existingCertificateKept = false;
+            SetTelevisionActionsEnabled(TizenDuid.IsValid(_selectedDuid));
         }
         catch (OperationCanceledException)
         {
-            if (status is not null) status.Text = InstallerLocalization.T("La generación del certificado se ha cancelado.");
+            if (status is not null) status.Text = InstallerLocalization.T("Certificate generation was cancelled.");
         }
         catch (Exception ex)
         {
-            if (status is not null) status.Text = InstallerLocalization.T($"No se pudo generar el certificado: {ex.Message}");
+            if (status is not null) status.Text = InstallerLocalization.T($"Could not generate the certificate: {ex.Message}");
         }
         finally
         {
@@ -931,7 +1069,7 @@ public sealed partial class MainWindow : Window
         var duid = GetSelectedDuid();
         if (string.IsNullOrWhiteSpace(duid) || !TizenDuid.IsValid(duid))
         {
-            ShowInstallationResult(false, InstallerLocalization.T("No se ha podido identificar correctamente el televisor. Vuelve al paso anterior y repite la detección."));
+            ShowInstallationResult(false, InstallerLocalization.T("The TV could not be identified correctly. Go back and run detection again."));
             _installationFinished = true;
             if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } invalidProgress)
                 invalidProgress.IsVisible = false;
@@ -940,7 +1078,7 @@ public sealed partial class MainWindow : Window
         }
         if (television is null)
         {
-            ShowInstallationResult(false, InstallerLocalization.T("No se ha seleccionado un televisor. Vuelve al paso anterior y selecciona el dispositivo."));
+            ShowInstallationResult(false, InstallerLocalization.T("No TV has been selected. Go back and select the device."));
             _installationFinished = true;
             if (this.FindControl<StackPanel>("InstallationProgressPanel") is { } missingProgress)
                 missingProgress.IsVisible = false;
@@ -960,7 +1098,7 @@ public sealed partial class MainWindow : Window
             progressBar.Value = 0;
             progressBar.IsVisible = true;
         }
-        SetOperationStatus(InstallerLocalization.T("Preparando la instalación…"));
+        SetOperationStatus(InstallerLocalization.T("Preparing installation…"));
         var temporaryDirectory = uninstallAndRetry
             ? _signedPackageDirectoryForRetry ?? throw new InvalidOperationException("The signed package prepared for retry is no longer available.")
             : Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller", "install-" + Guid.NewGuid().ToString("N"));
@@ -975,7 +1113,7 @@ public sealed partial class MainWindow : Window
             if (!uninstallAndRetry)
             {
                 Directory.CreateDirectory(temporaryDirectory);
-                SetOperationStatus(InstallerLocalization.T("Comprobando el perfil de firma Partner…"));
+                SetOperationStatus(InstallerLocalization.T("Checking the Partner signing profile…"));
                 var profile = _certificates.GetUsableForTelevision(duid, level)
                     ?? throw new InvalidOperationException(InstallerLocalization.T("The Partner certificate is unavailable or has expired. Generate or renew it before installing."));
 
@@ -996,7 +1134,7 @@ public sealed partial class MainWindow : Window
                 }
                 catch (SdbEndpointUnavailableException) when (television.UsesTvStoreRelay)
                 {
-                    SetOperationStatus(InstallerLocalization.T("Se ha perdido la conexión con el televisor. Se intentará restablecerla…"));
+                    SetOperationStatus(InstallerLocalization.T("The connection to the TV was lost. Trying to restore it…"));
                     await _sdbInstaller.UninstallAsync(
                         television.IpAddress, DiscoveredTelevision.DirectSdbPort, signedPackagePath,
                         new Progress<string>(message => Dispatcher.UIThread.Post(() => SetOperationStatus(message))));
@@ -1013,13 +1151,13 @@ public sealed partial class MainWindow : Window
             SdbInstallationService.InstallationResult result;
             try
             {
-                SetOperationStatus(InstallerLocalization.T("Instalando Moonlight…"));
+                SetOperationStatus(InstallerLocalization.T("Installing Moonlight…"));
                 result = await _sdbInstaller.InstallAsync(
                     television.IpAddress, television.SdbPort, signedPackagePath, installProgress);
             }
             catch (SdbEndpointUnavailableException) when (television.UsesTvStoreRelay)
             {
-                SetOperationStatus(InstallerLocalization.T("Se ha perdido la conexión con el televisor. Se intentará restablecerla…"));
+                SetOperationStatus(InstallerLocalization.T("The connection to the TV was lost. Trying to restore it…"));
                 result = await _sdbInstaller.InstallAsync(
                     television.IpAddress,
                     DiscoveredTelevision.DirectSdbPort,
@@ -1027,13 +1165,13 @@ public sealed partial class MainWindow : Window
                     installProgress);
             }
 
-            SetOperationStatus(InstallerLocalization.T("Tizen ha confirmado la instalación de Moonlight."));
+            SetOperationStatus(InstallerLocalization.T("Tizen has confirmed the Moonlight installation."));
             _installationCompleted = true;
-            ShowInstallationResult(true, InstallerLocalization.T("Moonlight se ha instalado correctamente en el televisor {0}. Comprueba que aparece en la lista de aplicaciones desde donde ya lo puedes iniciar siempre que quieras.").Replace("{0}", television.FriendlyName));
+            ShowInstallationResult(true, InstallerLocalization.T("Moonlight was successfully installed on the TV {0}. Check that it appears in the app list, where you can launch it whenever you want.").Replace("{0}", television.FriendlyName));
         }
         catch (OperationCanceledException)
         {
-            ShowInstallationResult(false, InstallerLocalization.T("La instalación se ha cancelado antes de completarse."));
+            ShowInstallationResult(false, InstallerLocalization.T("Installation was cancelled before completion."));
         }
         catch (Exception ex)
         {
@@ -1061,7 +1199,7 @@ public sealed partial class MainWindow : Window
             }
             else
             {
-                ShowInstallationResult(false, InstallerLocalization.T($"No se ha podido instalar Moonlight en el televisor. {HideInternalProtocolNames(errorMessage)}"));
+                ShowInstallationResult(false, InstallerLocalization.T($"Moonlight could not be installed on the TV. {HideInternalProtocolNames(errorMessage)}"));
             }
         }
         finally
@@ -1099,21 +1237,10 @@ public sealed partial class MainWindow : Window
     {
         if (this.FindControl<Grid>("InstallationResultPanel") is { } resultPanel)
             resultPanel.IsVisible = true;
-        if (this.FindControl<Border>("InstallationResultIconCircle") is { } iconCircle)
-        {
-            var color = Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62");
-            iconCircle.Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(success ? "#173F2B" : "#4A2025"));
-            iconCircle.BorderBrush = new Avalonia.Media.SolidColorBrush(color);
-        }
-        if (this.FindControl<Avalonia.Controls.Shapes.Path>("InstallationResultIcon") is { } icon)
-        {
-            icon.Data = Avalonia.Media.Geometry.Parse(success ? "M 3,12 L 9,18 L 21,6" : "M 6,6 L 18,18 M 18,6 L 6,18");
-            // The checkmark has a lower visual center than the cross; compensate slightly upward.
-            icon.Margin = success ? new Avalonia.Thickness(0, -5, 0, 0) : new Avalonia.Thickness(0);
-            icon.Stroke = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse(success ? "#35C978" : "#FF5B62"));
-        }
+        if (this.FindControl<ResultStatusIcon>("InstallationResultStatusIcon") is { } statusIcon)
+            statusIcon.IsSuccess = success;
         if (this.FindControl<TextBlock>("InstallationResultTitle") is { } title)
-            title.Text = InstallerLocalization.T(success ? "Instalación completada" : "No se ha podido instalar Moonlight");
+            title.Text = InstallerLocalization.T(success ? "Installation complete" : "Moonlight could not be installed");
         if (this.FindControl<TextBlock>("InstallationResultMessage") is { } resultMessage)
             resultMessage.Text = message;
         if (this.FindControl<TextBlock>("InstallationRetryInstructions") is { } retryInstructions)
@@ -1126,7 +1253,7 @@ public sealed partial class MainWindow : Window
     }
 
     private static string HideInternalProtocolNames(string message) =>
-        message.Replace("SDB", "conexión", StringComparison.OrdinalIgnoreCase);
+        message.Replace("SDB", "connection", StringComparison.OrdinalIgnoreCase);
 
     private void SetOperationStatus(string message)
     {

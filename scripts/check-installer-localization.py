@@ -52,6 +52,8 @@ else:
     locales = re.findall(r'"([^"]+)"', locale_match.group(1))
     if len(locales) != EXPECTED_LOCALES:
         errors.append(f"Expected {EXPECTED_LOCALES} locales, found {len(locales)}: {locales}")
+    if locales and locales[0] != "en-US":
+        errors.append(f"English (en-US) must be the first locale, found {locales[0]!r}")
 
 entry_re = re.compile(
     r'^\s*\["((?:\\.|[^"\\])*)"\]\s*=\s*'
@@ -69,6 +71,11 @@ for match in entry_re.finditer(localization):
     if len(values) != EXPECTED_LOCALES:
         errors.append(f"{key!r}: expected {EXPECTED_LOCALES} translations, found {len(values)}")
         continue
+    if values and key != values[0]:
+        errors.append(
+            f"{key!r}: source key must exactly match its English (en-US) translation; "
+            f"found {values[0]!r}"
+        )
     for locale, value in zip(locales, values):
         if not value.strip():
             errors.append(f"{key!r}: empty translation for {locale}")
@@ -93,7 +100,7 @@ for call in re.finditer(r'InstallerLocalization\.T\((.*?)\)', all_source, re.S):
 # Normalize interpolated expressions to numbered placeholders and mirror the
 # UI's removal of percentage values and internal SDB terminology.
 for report in re.finditer(r'progress\?\.Report\(\s*\$?"((?:\\.|[^"\\])*)"\s*\)', all_source):
-    message = normalize_interpolated(unescape_csharp(report.group(1)).replace("SDB", "conexión"))
+    message = normalize_interpolated(unescape_csharp(report.group(1)).replace("SDB", "connection"))
     message = re.sub(r"\s*\{\d+\}\s*%", "", message).strip()
     expected.add(message)
 

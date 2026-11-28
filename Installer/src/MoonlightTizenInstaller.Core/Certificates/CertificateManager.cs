@@ -54,6 +54,7 @@ public sealed class CertificateManager
         if (string.IsNullOrEmpty(password) ||
             !IsCertificateCurrentlyValid(authorPath, password) ||
             !IsCertificateCurrentlyValid(distributorPath, password) ||
+            !HasMoonlightAuthorName(authorPath, password) ||
             !CertificateProvisioningService.GetCoveredDuids(profileDirectory).Contains(televisionDuid))
             return null;
 
@@ -65,6 +66,86 @@ public sealed class CertificateManager
     {
         try { return GetUsableForTelevision(televisionDuid) is not null; }
         catch { return false; }
+    }
+
+    /// <summary>Returns the subject's simple name from the saved author certificate, if readable.</summary>
+    public string? GetStoredAuthorCertificateName(
+        CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner)
+    {
+        var profileDirectory = GetStoredProfileDirectory(level);
+        if (profileDirectory is null)
+            return null;
+        var authorPath = Path.Combine(profileDirectory, "author.p12");
+        var password = CertificateSecrets.GetOrMigrate(profileDirectory);
+        if (string.IsNullOrEmpty(password) || !File.Exists(authorPath))
+            return null;
+
+        try
+        {
+#pragma warning disable SYSLIB0057
+            using var certificate = new X509Certificate2(
+                authorPath, password, X509KeyStorageFlags.EphemeralKeySet);
+#pragma warning restore SYSLIB0057
+            return certificate.GetNameInfo(X509NameType.SimpleName, false);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string? GetStoredProfileDirectory(CertificatePrivilegeLevel level)
+    {
+        var current = Path.Combine(_options.ProfileStorePath, CertificateProvisioningService.ProfileName(level));
+        if (File.Exists(Path.Combine(current, "author.p12")))
+            return current;
+
+        var suffix = level == CertificatePrivilegeLevel.Partner ? "Partner" : "Public";
+        var legacy = Path.Combine(_options.ProfileStorePath, $"Jelly2Sams - {suffix}");
+        return File.Exists(Path.Combine(legacy, "author.p12")) ? legacy : null;
+    }
+
+    /// <summary>Reads the saved author certificate details, including legacy profile locations.</summary>
+    public (string Subject, DateTime IssuedOn, DateTime ExpiresOn)? GetStoredAuthorCertificateDetails(
+        CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner)
+    {
+        var directory = GetStoredProfileDirectory(level);
+        if (directory is null)
+            return null;
+        var authorPath = Path.Combine(directory, "author.p12");
+        var password = CertificateSecrets.GetOrMigrate(directory);
+        if (string.IsNullOrEmpty(password))
+            return null;
+        try
+        {
+#pragma warning disable SYSLIB0057
+            using var certificate = new X509Certificate2(authorPath, password, X509KeyStorageFlags.EphemeralKeySet);
+#pragma warning restore SYSLIB0057
+            return (certificate.GetNameInfo(X509NameType.SimpleName, false), certificate.NotBefore, certificate.NotAfter);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool HasMoonlightAuthorName(string authorPath, string password)
+    {
+        try
+        {
+#pragma warning disable SYSLIB0057
+            using var certificate = new X509Certificate2(
+                authorPath, password, X509KeyStorageFlags.EphemeralKeySet);
+#pragma warning restore SYSLIB0057
+            return string.Equals(
+                certificate.GetNameInfo(X509NameType.SimpleName, false),
+                CertificateProvisioningService.ProfileBaseName,
+                StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     public (string Subject, DateTime IssuedOn, DateTime ExpiresOn)? GetCertificateDetailsForTelevision(string televisionDuid)
@@ -92,7 +173,8 @@ public sealed class CertificateManager
         string televisionDuid,
         CertificatePrivilegeLevel level = CertificatePrivilegeLevel.Partner,
         Action<string>? progress = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool forceRegenerate = false)
     {
         if (!TizenDuid.IsValid(televisionDuid))
             throw new ArgumentException("Se requiere un DUID válido del televisor.", nameof(televisionDuid));
@@ -103,6 +185,7 @@ public sealed class CertificateManager
             level,
             _options.ProfileStorePath,
             _options.CertificateAuthorityDirectory,
+            forceLogin: forceRegenerate,
             progress: progress is null ? null : new ProgressCallback(progress),
             ct: cancellationToken);
     }

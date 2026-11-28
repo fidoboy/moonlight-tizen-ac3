@@ -58,15 +58,15 @@ public sealed class TvStoreHandoffService
         {
             if (!await IsTvStoreInstalledAsync(televisionIp, cancellationToken).ConfigureAwait(false))
             {
-                progress?.Report("TV-Store no está instalado o no se puede confirmar su presencia.");
+                progress?.Report("TV-Store is not installed or its presence cannot be confirmed.");
                 return null;
             }
 
-            progress?.Report("TV-Store está instalado. Iniciándolo para preparar la recepción del paquete…");
+            progress?.Report("TV-Store is installed. Launching it to prepare for package reception…");
             launchAccepted = await LaunchTvStoreAsync(televisionIp, cancellationToken).ConfigureAwait(false);
             if (!launchAccepted)
             {
-                progress?.Report("No se ha podido iniciar TV-Store.");
+                progress?.Report("Could not launch TV-Store.");
                 return null;
             }
 
@@ -83,15 +83,15 @@ public sealed class TvStoreHandoffService
 
         if (!serviceAvailable)
         {
-            progress?.Report("TV-Store está instalado, pero su servicio de recepción no ha quedado disponible.");
+            progress?.Report("TV-Store is installed, but its receiving service is unavailable.");
             return null;
         }
 
-        progress?.Report("TV-Store está disponible. Enviando Moonlight.wgt…");
+        progress?.Report("TV-Store is ready. Sending Moonlight.wgt…");
         var upload = await UploadAsync(televisionIp, packagePath, progress, cancellationToken).ConfigureAwait(false);
         if (upload is null)
         {
-            progress?.Report("TV-Store no ha aceptado o no ha verificado el paquete.");
+            progress?.Report("TV-Store did not accept or verify the package.");
             return null;
         }
 
@@ -196,7 +196,7 @@ public sealed class TvStoreHandoffService
             if (!response.IsSuccessStatusCode || answer?["ok"]?.GetValue<bool>() != true)
             {
                 var reason = answer?["error"]?.GetValue<string>() ?? $"HTTP {(int)response.StatusCode}";
-                progress?.Report($"TV-Store ha rechazado el paquete: {reason}");
+                progress?.Report($"TV-Store rejected the package: {reason}");
                 return null;
             }
 
@@ -206,7 +206,7 @@ public sealed class TvStoreHandoffService
             if (!string.Equals(receivedSha256, localSha256, StringComparison.Ordinal) ||
                 receivedSize != localSize)
             {
-                progress?.Report("TV-Store no ha confirmado la integridad del WGT recibido.");
+                progress?.Report("TV-Store did not confirm the integrity of the received WGT.");
                 return null;
             }
 
@@ -215,7 +215,7 @@ public sealed class TvStoreHandoffService
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception ex)
         {
-            progress?.Report($"No se ha podido transferir el WGT a TV-Store: {ex.Message}");
+            progress?.Report($"Could not transfer the WGT to TV-Store: {ex.Message}");
             return null;
         }
     }

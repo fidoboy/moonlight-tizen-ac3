@@ -18,21 +18,21 @@ L’option recommandée est le **Moonlight Tizen Installer**. Exécutez-le sur u
 Ouvrez la [dernière version stable](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) et téléchargez dans **Assets** le fichier adapté :
 
 - **Windows 64 bits :** `MoonlightTizenInstaller.exe`
-- **Linux 64 bits :** `MoonlightTizenInstaller`
-- **macOS Intel :** `MoonlightTizenInstaller-osx-x64`
-- **macOS Apple Silicon :** `MoonlightTizenInstaller-osx-arm64`
+- **Linux 64 bits :** `MoonlightTizenInstaller.AppImage`
+- **macOS Intel :** `MoonlightTizenInstaller-osx-x64.dmg`
+- **macOS Apple Silicon :** `MoonlightTizenInstaller-osx-arm64.dmg`
 
-L’installateur est un fichier exécutable autonome qui contient déjà tout le nécessaire, y compris l’application TizenOS elle-même, qui est transférée sur votre téléviseur.
+Les installateurs Windows et Linux sont des exécutables autonomes. Chaque DMG macOS contient le bundle de l’application ; ouvrez l’image disque et copiez l’application dans Applications.
 
 ### 2. Lancer l’installateur
 
 - **Windows :** double-cliquez sur le fichier `.exe`. Si Microsoft Defender SmartScreen affiche un avertissement, vérifiez que le fichier provient de la publication officielle de ce projet avant de choisir de l’exécuter.
-- **macOS :** dans Finder, ouvrez **Téléchargements**, faites un clic droit (ou Ctrl-clic) sur le fichier et choisissez **Ouvrir**. Confirmez si nécessaire. Si macOS l’a bloqué, allez dans **Réglages Système → Confidentialité et sécurité**, repérez l’avis et choisissez **Ouvrir quand même**. Utilisez Intel sur les Mac Intel et ARM64 sur les Mac Apple Silicon.
+- **macOS :** ouvrez le fichier `.dmg` téléchargé depuis **Téléchargements**. Dans la fenêtre qui apparaît, faites glisser **Moonlight Tizen Installer** vers **Applications**, puis éjectez l’image disque montée. Ouvrez l’application depuis Applications. Si macOS la bloque, allez dans **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**. Utilisez la version Intel sur les Mac Intel et ARM64 sur les Mac Apple Silicon.
 - **Linux :** ouvrez un terminal dans le dossier de téléchargement et exécutez :
   ```bash
-  chmod +x MoonlightTizenInstaller
-  ./MoonlightTizenInstaller
-  ```
+chmod +x MoonlightTizenInstaller.AppImage
+./MoonlightTizenInstaller.AppImage
+```
   Vous pouvez aussi activer **Autoriser l’exécution du fichier comme un programme** dans le gestionnaire de fichiers, si disponible, puis ouvrir le fichier.
 
 ### 3. Suivre l’assistant
@@ -55,7 +55,7 @@ L’installateur est un fichier exécutable autonome qui contient déjà tout le
 ### Dépannage
 
 - **Téléviseur introuvable :** vérifiez qu’il est allumé et connecté au même réseau local. Le Wi-Fi invité, l’isolation des clients ou des VLAN distincts peuvent bloquer la détection. Autorisez l’installateur dans le pare-feu si demandé.
-- **macOS bloque l’application :** utilisez Finder → Ctrl-clic → **Ouvrir**, ou **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**.
+- **macOS bloque l’application :** allez dans **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**.
 - **Linux refuse l’exécution :** lancez la commande `chmod +x` ci-dessus, puis réessayez.
 - **Developer Mode est demandé :** suivez les instructions, notamment la valeur Host PC IP, puis réessayez.
 - **TV-Store reçoit le paquet sans terminer :** acceptez l’installation sur le téléviseur. Si TV-Store ne peut pas continuer, choisissez l’option SDB proposée par l’assistant.

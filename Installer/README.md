@@ -74,7 +74,7 @@ If they are absent, existing profiles can still be recovered and reused, but new
 - Certificate issuance and local signing still require the separately provisioned CA inputs.
 - Real-device end-to-end testing is still required across supported TV models and firmware versions.
 
-The four-platform workflow compiles and publishes self-contained builds for Windows x64, Linux x64, macOS x64 and macOS ARM64. This build validation does not replace testing the transfer and installation against physical Samsung TVs.
+The four-platform workflow compiles and publishes self-contained builds for Windows x64, Linux x64, macOS x64 and macOS ARM64. The Linux x64 build uses `linuxdeploy` to bundle the executable, desktop entry, icon and detected shared-library dependencies into a portable `MoonlightTizenInstaller-x86_64.AppImage`. This build validation does not replace testing the transfer and installation against physical Samsung TVs.
 
 ## Upstream source and licensing
 

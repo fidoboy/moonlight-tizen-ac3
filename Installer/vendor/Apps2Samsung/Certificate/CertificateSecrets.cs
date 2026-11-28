@@ -67,6 +67,24 @@ public static class CertificateSecrets
         return legacyPassword;
     }
 
+    /// <summary>Moves a profile password to its renamed profile key without losing the old value on failure.</summary>
+    public static void RenameProfile(string oldProfileName, string newProfileName)
+    {
+        if (string.IsNullOrWhiteSpace(oldProfileName) || string.IsNullOrWhiteSpace(newProfileName))
+            throw new ArgumentException("Both profile names are required.");
+
+        var oldPassword = Get(oldProfileName);
+        if (string.IsNullOrEmpty(oldPassword))
+            return;
+
+        if (string.IsNullOrEmpty(Get(newProfileName)))
+            Set(newProfileName, oldPassword);
+
+        // Delete the legacy key only after the new key is safely present.
+        if (!string.IsNullOrEmpty(Get(newProfileName)))
+            Delete(oldProfileName);
+    }
+
     public static void Delete(string profileName) => Store.Value.Delete(Key(profileName));
 
     private static void DeleteLegacyFile(string profileDirectory)
