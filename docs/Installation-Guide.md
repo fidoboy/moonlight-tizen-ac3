@@ -18,15 +18,15 @@ Open the [latest stable release](https://github.com/fidoboy/moonlight-tizen-ac3/
 
 - **Windows 64-bit:** `MoonlightTizenInstaller.exe`
 - **Linux 64-bit:** `MoonlightTizenInstaller.AppImage`
-- **macOS Intel:** `MoonlightTizenInstaller-osx-x64.zip`
-- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.zip`
+- **macOS Intel:** `MoonlightTizenInstaller-osx-x64.dmg`
+- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.dmg`
 
 The installer is a standalone executable file that already includes everything you need, including the TizenOS app itself, which is transferred to your TV.
 
 ### 2. Run the installer
 
 - **Windows:** double-click the downloaded `.exe`. If Microsoft Defender SmartScreen displays a warning, verify that the file came from this project's official release before choosing to run it.
-- **macOS:** in Finder, open **Downloads**, Control-click (or right-click) the file and choose **Open**. Confirm **Open** if prompted. If macOS has already blocked it, go to **System Settings → Privacy & Security**, find the blocked-app notice and choose **Open Anyway**. Use the Intel build on Intel Macs and the ARM64 build on Apple Silicon Macs.
+- **macOS:** Open the downloaded `.dmg` from **Downloads**. In the window that opens, drag **Moonlight Tizen Installer** to **Applications**, then eject the mounted disk image. Open the app from Applications. If macOS blocks it, go to **System Settings → Privacy & Security → Open Anyway**. Use the Intel build on Intel Macs and the ARM64 build on Apple Silicon Macs.
 - **Linux:** open a terminal in the download folder and run:
   ```bash
 chmod +x MoonlightTizenInstaller.AppImage
@@ -54,7 +54,7 @@ chmod +x MoonlightTizenInstaller.AppImage
 ### Troubleshooting
 
 - **The TV is not found:** check that it is on and connected to the same local network. Guest Wi-Fi, client isolation or separate VLANs can block discovery. Allow the installer through the computer's firewall if prompted.
-- **macOS blocks the app:** use Finder's Control-click → **Open** option, or **System Settings → Privacy & Security → Open Anyway**.
+- **macOS blocks the app:** go to **System Settings → Privacy & Security → Open Anyway**.
 - **Linux reports permission denied:** run the `chmod +x` command above and launch the file again.
 - **Developer Mode is requested:** follow the wizard's instructions, including the specified Host PC IP, then retry.
 - **TV-Store receives the package but installation does not finish:** accept the installation on the TV itself. If TV-Store cannot continue, use the wizard's option to continue through SDB.
