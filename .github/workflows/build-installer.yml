@@ -261,6 +261,82 @@ jobs:
           unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Info.plist'
           unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Resources/MoonlightTizenInstaller.icns'
 
+      - name: Probe native macOS OpenGL context creation
+        if: startsWith(matrix.rid, 'osx-')
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_file="$RUNNER_TEMP/cgl-probe.c"
+          executable="$RUNNER_TEMP/cgl-probe"
+          native_log="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-cgl.log"
+
+          cat > "$source_file" <<'EOF'
+          #include <OpenGL/OpenGL.h>
+          #include <OpenGL/gl.h>
+          #include <stdio.h>
+
+          static int probe(const char *name, int require_acceleration)
+          {
+              CGLPixelFormatAttribute attributes[12];
+              int index = 0;
+              if (require_acceleration)
+                  attributes[index++] = kCGLPFAAccelerated;
+              attributes[index++] = kCGLPFAOpenGLProfile;
+              attributes[index++] = (CGLPixelFormatAttribute)kCGLOGLPVersion_3_2_Core;
+              attributes[index++] = kCGLPFADepthSize;
+              attributes[index++] = (CGLPixelFormatAttribute)8;
+              attributes[index++] = kCGLPFAStencilSize;
+              attributes[index++] = (CGLPixelFormatAttribute)8;
+              attributes[index++] = kCGLPFAColorSize;
+              attributes[index++] = (CGLPixelFormatAttribute)32;
+              attributes[index] = (CGLPixelFormatAttribute)0;
+
+              CGLPixelFormatObj pixel_format = NULL;
+              GLint pixel_format_count = 0;
+              CGLError error = CGLChoosePixelFormat(attributes, &pixel_format, &pixel_format_count);
+              printf("[%s] CGLChoosePixelFormat: error=%d, pixel_format=%p, count=%d\\n",
+                     name, (int)error, (void *)pixel_format, (int)pixel_format_count);
+              if (error != kCGLNoError || pixel_format == NULL)
+                  return 1;
+
+              CGLContextObj context = NULL;
+              error = CGLCreateContext(pixel_format, NULL, &context);
+              printf("[%s] CGLCreateContext: error=%d, context=%p\\n",
+                     name, (int)error, (void *)context);
+              CGLDestroyPixelFormat(pixel_format);
+              if (error != kCGLNoError || context == NULL)
+                  return 1;
+
+              error = CGLSetCurrentContext(context);
+              printf("[%s] CGLSetCurrentContext: error=%d\\n", name, (int)error);
+              if (error == kCGLNoError) {
+                  printf("[%s] GL_VENDOR=%s\\n", name, glGetString(GL_VENDOR));
+                  printf("[%s] GL_RENDERER=%s\\n", name, glGetString(GL_RENDERER));
+                  printf("[%s] GL_VERSION=%s\\n", name, glGetString(GL_VERSION));
+              }
+
+              CGLSetCurrentContext(NULL);
+              CGLDestroyContext(context);
+              return error == kCGLNoError ? 0 : 1;
+          }
+
+          int main(void)
+          {
+              int accelerated = probe("Avalonia-equivalent-accelerated-3.2-core", 1);
+              int unaccelerated = probe("3.2-core-without-accelerated-flag", 0);
+              printf("RESULT accelerated=%s unaccelerated=%s\\n",
+                     accelerated == 0 ? "PASS" : "FAIL",
+                     unaccelerated == 0 ? "PASS" : "FAIL");
+              return 0;
+          }
+          EOF
+
+          clang "$source_file" -framework OpenGL -o "$executable"
+          set +e
+          "$executable" 2>&1 | tee "$native_log"
+          probe_status=${PIPESTATUS[0]}
+          set -e
+          echo "Native CGL probe exit code: $probe_status"
       - name: Launch macOS app and capture its window and Dock
         if: startsWith(matrix.rid, 'osx-')
         shell: bash
@@ -275,6 +351,7 @@ jobs:
           test -d "$app"
           screenshot="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png"
           diagnostic_log="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-avalonia.log"
+          native_log="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-cgl.log"
           rm -f "$screenshot" "$diagnostic_log"
 
           # Keep the Dock visible so the screenshot records the app icon while it runs.
@@ -308,6 +385,7 @@ jobs:
           path: |
             ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png
             ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-avalonia.log
+            ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-cgl.log
           if-no-files-found: warn
           retention-days: 7
       - name: Upload macOS application ZIP
