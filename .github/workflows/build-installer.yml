@@ -176,15 +176,15 @@ jobs:
             https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
             --output linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-x86_64.AppImage
-          LDAI_OUTPUT="$PWD/artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage" \
+          LDAI_OUTPUT="$PWD/artifacts/dist/MoonlightTizenInstaller.AppImage" \
             APPIMAGE_EXTRACT_AND_RUN=1 ./linuxdeploy-x86_64.AppImage \
               --appdir artifacts/appdir \
               --desktop-file artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop \
               --icon-file "$icon" \
               --output appimage
-          chmod +x artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage
-          file artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage
-          artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage --appimage-extract
+          chmod +x artifacts/dist/MoonlightTizenInstaller.AppImage
+          file artifacts/dist/MoonlightTizenInstaller.AppImage
+          artifacts/dist/MoonlightTizenInstaller.AppImage --appimage-extract
           test -x squashfs-root/AppRun
           test -x squashfs-root/usr/bin/MoonlightTizenInstaller
           test -s squashfs-root/usr/share/applications/MoonlightTizenInstaller.desktop
