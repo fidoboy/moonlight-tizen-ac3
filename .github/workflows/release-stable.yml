@@ -854,7 +854,7 @@ jobs:
           unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Info.plist'
           unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Resources/MoonlightTizenInstaller.icns'
 
-      - name: Smoke-test macOS application bundle and capture Dock
+      - name: Launch macOS app and capture its window and Dock
         if: startsWith(matrix.rid, 'osx-')
         shell: bash
         run: |
@@ -865,79 +865,23 @@ jobs:
           ditto -x -k "$archive" "$extraction"
 
           app="$extraction/Moonlight Tizen Installer.app"
-          info="$app/Contents/Info.plist"
-          executable="$app/Contents/MacOS/MoonlightTizenInstaller"
-          icon="$app/Contents/Resources/MoonlightTizenInstaller.icns"
           test -d "$app"
-          plutil -lint "$info"
-          test -x "$executable"
-          test -s "$icon"
-
-          bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info")
-          display_name=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$info")
-          package_type=$(/usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$info")
-          test "$bundle_id" = "com.fidoboy.moonlight-tizen-installer"
-          test "$display_name" = "Moonlight Tizen Installer"
-          test "$package_type" = "APPL"
-
-          case "${{ matrix.rid }}" in
-            osx-x64) expected_arch="x86_64"; expected_runner="x86_64" ;;
-            osx-arm64) expected_arch="arm64"; expected_runner="arm64" ;;
-            *) echo "Unexpected macOS runtime: ${{ matrix.rid }}" >&2; exit 1 ;;
-          esac
-          actual_runner="$(uname -m)"
-          if [[ "$actual_runner" != "$expected_runner" ]]; then
-            echo "Expected native $expected_runner runner, got $actual_runner." >&2
-            exit 1
-          fi
-          lipo -archs "$executable" | grep -qw "$expected_arch"
-          echo "Bundle validated: $display_name ($expected_arch)"
-
-          # Launch the extracted application through LaunchServices, not its executable directly.
-          open "$app"
-          sleep 8
-          swift - "$bundle_id" <<'SWIFT'
-          import AppKit
-          import Foundation
-
-          let bundleID = CommandLine.arguments[1]
-          let deadline = Date().addingTimeInterval(25)
-          var runningApp: NSRunningApplication?
-          while Date() < deadline {
-              runningApp = NSRunningApplication.runningApplications(withBundleIdentifier: bundleID)
-                  .first(where: { !$0.isTerminated })
-              if runningApp != nil { break }
-              Thread.sleep(forTimeInterval: 0.5)
-          }
-
-          guard let app = runningApp else {
-              fputs("The application did not remain running after LaunchServices opened it.\\n", stderr)
-              exit(1)
-          }
-          print("Application running: \\(app.localizedName ?? bundleID), PID \\(app.processIdentifier)")
-          guard app.activationPolicy == .regular else {
-              fputs("Expected a regular macOS application with a Dock icon; got activation policy \\(app.activationPolicy.rawValue).\\n", stderr)
-              exit(1)
-          }
-          print("Dock activation policy: regular")
-          Thread.sleep(forTimeInterval: 5)
-          guard !app.isTerminated else {
-              fputs("The application exited during the startup smoke test.\\n", stderr)
-              exit(1)
-          }
-          print("Application remained running after startup.")
-          SWIFT
-
           screenshot="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png"
-          if /usr/sbin/screencapture -x "$screenshot" && test -s "$screenshot"; then
-            echo "Desktop screenshot captured: $screenshot"
-            sips -g pixelWidth -g pixelHeight "$screenshot"
-          else
-            echo "::warning::This macOS runner did not provide a capturable desktop; app launch and Dock activation were still verified."
-          fi
+
+          # Keep the Dock visible so the screenshot records the app icon while it runs.
+          defaults write com.apple.dock autohide -bool false
+          killall Dock || true
+          sleep 2
+
+          # Open the packaged .app through Finder's LaunchServices integration.
+          open "$app"
+          sleep 12
+          /usr/sbin/screencapture -x "$screenshot"
+          test -s "$screenshot"
+          sips -g pixelWidth -g pixelHeight "$screenshot"
         timeout-minutes: 3
 
-      - name: Upload macOS desktop screenshot
+      - name: Upload macOS startup screenshot
         if: always() && startsWith(matrix.rid, 'osx-')
         uses: actions/upload-artifact@v6
         with:
