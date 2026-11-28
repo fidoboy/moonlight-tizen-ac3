@@ -27,7 +27,7 @@ El instalador es un archivo ejecutable independiente que ya incluye todo lo nece
 ### 2. Ejecuta el instalador
 
 - **Windows:** haz doble clic en el archivo `.exe`. Si Microsoft Defender SmartScreen muestra una advertencia, comprueba que lo has descargado de la publicación oficial de este proyecto antes de elegir ejecutarlo.
-- **macOS:** en Finder, abre **Descargas**, haz clic derecho (o Control + clic) sobre el archivo y selecciona **Abrir**. Confirma si se solicita. Si macOS ya lo ha bloqueado, ve a **Ajustes del Sistema → Privacidad y seguridad**, localiza el aviso y pulsa **Abrir igualmente**. Usa la versión Intel en Mac Intel y ARM64 en Mac Apple Silicon.
+- **macOS:** en Finder, abre **Descargas**, haz clic derecho (o Control + clic) sobre el archivo y selecciona **Abrir**. Confirma si se solicita. Si macOS ya lo ha bloqueado, ve a **Ajustes del Sistema → Privacidad y seguridad** y pulsa **Abrir de todos modos**. Usa la versión Intel en Mac Intel y ARM64 en Mac Apple Silicon.
 - **Linux:** abre un terminal en la carpeta de descargas y ejecuta:
   ```bash
 chmod +x MoonlightTizenInstaller.AppImage
@@ -55,7 +55,7 @@ chmod +x MoonlightTizenInstaller.AppImage
 ### Solución de problemas
 
 - **No se encuentra el televisor:** comprueba que está encendido y conectado a la misma red local. El Wi-Fi de invitados, el aislamiento de clientes o las VLAN separadas pueden impedir la detección. Permite el acceso en el cortafuegos si se solicita.
-- **macOS bloquea la aplicación:** utiliza Finder → Control + clic → **Abrir**, o **Ajustes del Sistema → Privacidad y seguridad → Abrir igualmente**.
+- **Si macOS bloquea la app:** ve a **Ajustes del Sistema → Privacidad y seguridad → Abrir de todos modos**.
 - **Linux indica que faltan permisos:** ejecuta el comando `chmod +x` anterior y vuelve a abrir el archivo.
 - **Se solicita Developer Mode:** sigue las instrucciones del asistente, incluido el valor de Host PC IP, y vuelve a intentarlo.
 - **TV-Store recibe el paquete pero no termina:** acepta la instalación en el televisor. Si TV-Store no puede continuar, utiliza la opción del asistente para seguir mediante SDB.
