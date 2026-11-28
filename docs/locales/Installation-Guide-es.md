@@ -19,15 +19,15 @@ Abre la [última versión estable](https://github.com/fidoboy/moonlight-tizen-ac
 
 - **Windows de 64 bits:** `MoonlightTizenInstaller.exe`
 - **Linux de 64 bits:** `MoonlightTizenInstaller.AppImage`
-- **macOS Intel:** `MoonlightTizenInstaller-osx-x64.zip`
-- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.zip`
+- **macOS Intel:** `MoonlightTizenInstaller-osx-x64.dmg`
+- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.dmg`
 
 El instalador es un archivo ejecutable independiente que ya incluye todo lo necesario, incluida la propia aplicación TizenOS, que se transfiere al televisor.
 
 ### 2. Ejecuta el instalador
 
 - **Windows:** haz doble clic en el archivo `.exe`. Si Microsoft Defender SmartScreen muestra una advertencia, comprueba que lo has descargado de la publicación oficial de este proyecto antes de elegir ejecutarlo.
-- **macOS:** en Finder, abre **Descargas**, haz clic derecho (o Control + clic) sobre el archivo y selecciona **Abrir**. Confirma si se solicita. Si macOS ya lo ha bloqueado, ve a **Ajustes del Sistema → Privacidad y seguridad** y pulsa **Abrir de todos modos**. Usa la versión Intel en Mac Intel y ARM64 en Mac Apple Silicon.
+- **macOS:** Abre el archivo `.dmg` descargado desde **Descargas**. En la ventana que aparece, arrastra **Moonlight Tizen Installer** a **Aplicaciones** y expulsa después la imagen de disco montada. Abre la app desde Aplicaciones. Si macOS la bloquea, ve a **Ajustes del Sistema → Privacidad y seguridad → Abrir de todos modos**. Usa la versión Intel en Mac Intel y ARM64 en Mac Apple Silicon.
 - **Linux:** abre un terminal en la carpeta de descargas y ejecuta:
   ```bash
 chmod +x MoonlightTizenInstaller.AppImage
