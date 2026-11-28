@@ -179,6 +179,8 @@ jobs:
           LDAI_OUTPUT="$PWD/artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage" \
             APPIMAGE_EXTRACT_AND_RUN=1 ./linuxdeploy-x86_64.AppImage \
               --appdir artifacts/appdir \
+              --desktop-file artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop \
+              --icon-file "$icon" \
               --output appimage
           chmod +x artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage
           file artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage
