@@ -52,6 +52,18 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Read installer version from changelog
+        id: installer-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(awk '/^## v[0-9]+\\.[0-9]+\\.[0-9]+([[:space:]]|$)/ { sub(/^## v/, ""); print; exit }' CHANGELOG.md)"
+          if [[ ! "$VERSION" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
+            echo "::error::Could not determine the installer version from CHANGELOG.md." >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Generate multi-resolution Windows icon
         if: matrix.rid == 'win-x64'
         shell: pwsh
@@ -101,7 +113,7 @@ jobs:
         run: dotnet restore Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --runtime ${{ matrix.rid }}
 
       - name: Publish self-contained single-file executable
-        run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore --output artifacts/publish
+        run: dotnet publish Installer/src/MoonlightTizenInstaller/MoonlightTizenInstaller.csproj --configuration Release --runtime ${{ matrix.rid }} --self-contained true --no-restore -p:Version=${{ steps.installer-version.outputs.version }} --output artifacts/publish
 
       - name: Smoke-test Windows application startup
         if: matrix.rid == 'win-x64'
