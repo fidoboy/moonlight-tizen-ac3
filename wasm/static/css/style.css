@@ -2381,6 +2381,11 @@ body[data-color-theme="black-orange"] #background-layer {
 .mdl-slider {
     width: 74rem;
 }
+.videoBitrateMenu > .mdl-slider__container {
+    flex: 1 1 0;
+    width: auto !important;
+    min-width: 0;
+}
 .mdl-slider__background-flex {
     top: 25%;
     height: 12px;
