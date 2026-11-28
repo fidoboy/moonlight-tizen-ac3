@@ -171,8 +171,8 @@ jobs:
             printf '|---|---|\n'
             printf '| Windows (x64) | [MoonlightTizenInstaller.exe](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.exe) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
             printf '| Linux (x64) | [MoonlightTizenInstaller.AppImage](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.AppImage) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
-            printf '| macOS (Intel) | [MoonlightTizenInstaller-osx-x64.zip](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-x64.zip) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
-            printf '| macOS (Apple Silicon) | [MoonlightTizenInstaller-osx-arm64.zip](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-arm64.zip) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| macOS (Intel) | [MoonlightTizenInstaller-osx-x64.dmg](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-x64.dmg) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| macOS (Apple Silicon) | [MoonlightTizenInstaller-osx-arm64.dmg](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-arm64.dmg) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
 
             printf '\n\n---\n\n<details>\n<summary>⚙️ Changelog details for v%s</summary>\n\n' "$RELEASE_VERSION"
             cat "$VERSIONED_ENTRY"
@@ -850,16 +850,34 @@ jobs:
           plutil -lint "$contents/Info.plist"
           test -s "$contents/Resources/MoonlightTizenInstaller.icns"
           test -x "$contents/MacOS/MoonlightTizenInstaller"
-          ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip
-          unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Info.plist'
-          unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Resources/MoonlightTizenInstaller.icns'
+          dmg_root="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-dmg"
+          mount_point="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-mount"
+          mkdir -p "$dmg_root" "$mount_point"
+          cp -a "$app" "$dmg_root/"
 
-      - name: Upload macOS application ZIP
+          brew install create-dmg
+          create-dmg \
+            --volname "Moonlight Tizen Installer" \
+            --window-pos 200 120 \
+            --window-size 640 400 \
+            --icon-size 112 \
+            --icon "Moonlight Tizen Installer.app" 160 190 \
+            --app-drop-link 480 190 \
+            "artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg" \
+            "$dmg_root"
+
+          hdiutil verify "artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount_point" "artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg"
+          test -d "$mount_point/Moonlight Tizen Installer.app"
+          test -s "$mount_point/Moonlight Tizen Installer.app/Contents/Resources/MoonlightTizenInstaller.icns"
+          hdiutil detach "$mount_point"
+
+      - name: Upload macOS disk image
         if: startsWith(matrix.rid, 'osx-')
         uses: actions/upload-artifact@v6
         with:
           name: MoonlightTizenInstaller-${{ matrix.rid }}
-          path: artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip
+          path: artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg
           if-no-files-found: error
           retention-days: 1
 
@@ -934,8 +952,8 @@ jobs:
           cp release-inputs/Moonlight-ForceGM.wgt dist/Moonlight-ForceGM.wgt
           cp installer-win-x64/MoonlightTizenInstaller.exe dist/MoonlightTizenInstaller.exe
           cp installer-linux-x64/MoonlightTizenInstaller.AppImage dist/MoonlightTizenInstaller.AppImage
-          cp installer-osx-x64/MoonlightTizenInstaller-osx-x64.zip dist/MoonlightTizenInstaller-osx-x64.zip
-          cp installer-osx-arm64/MoonlightTizenInstaller-osx-arm64.zip dist/MoonlightTizenInstaller-osx-arm64.zip
+          cp installer-osx-x64/MoonlightTizenInstaller-osx-x64.dmg dist/MoonlightTizenInstaller-osx-x64.dmg
+          cp installer-osx-arm64/MoonlightTizenInstaller-osx-arm64.dmg dist/MoonlightTizenInstaller-osx-arm64.dmg
           cp release-inputs/release-notes.md "$RUNNER_TEMP/release-notes.md"
           test "$(find dist -maxdepth 1 -type f | wc -l)" -eq 6
           test -s dist/Moonlight.wgt
@@ -959,8 +977,8 @@ jobs:
             dist/Moonlight-ForceGM.wgt
             dist/MoonlightTizenInstaller.exe
             dist/MoonlightTizenInstaller.AppImage
-            dist/MoonlightTizenInstaller-osx-x64.zip
-            dist/MoonlightTizenInstaller-osx-arm64.zip
+            dist/MoonlightTizenInstaller-osx-x64.dmg
+            dist/MoonlightTizenInstaller-osx-arm64.dmg
           body_path: ${{ runner.temp }}/release-notes.md
 
       - name: Remove unpublished release and tag if installer build or publication fails
