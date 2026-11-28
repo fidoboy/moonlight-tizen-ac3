@@ -165,8 +165,40 @@ jobs:
           desktop-file-validate artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop
           cat > artifacts/appdir/AppRun <<'EOF'
           #!/bin/sh
+          set -eu
+
           HERE="$(dirname "$(readlink -f "$0")")"
-          exec "$HERE/usr/bin/MoonlightTizenInstaller" "$@"
+          APP_BINARY="$HERE/usr/bin/MoonlightTizenInstaller"
+          ICON_SOURCE="$HERE/usr/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
+
+          # Register this AppImage with GNOME so its window can be matched to the dock launcher.
+          if [ -n "${APPIMAGE:-}" ] && [ -f "$ICON_SOURCE" ]; then
+            DESKTOP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+            ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/512x512/apps"
+            DESKTOP_FILE="$DESKTOP_DIR/moonlight-tizen-installer.desktop"
+            ICON_FILE="$ICON_DIR/moonlight-tizen-installer.png"
+
+            mkdir -p "$DESKTOP_DIR" "$ICON_DIR"
+            install -m 644 "$ICON_SOURCE" "$ICON_FILE"
+
+            APPIMAGE_PATH="$(readlink -f "$APPIMAGE")"
+            DESKTOP_EXEC="$(printf '%s' "$APPIMAGE_PATH" | sed 's/\\/\\\\/g; s/"/\\"/g; s/%/%%/g')"
+            cat > "$DESKTOP_FILE" <<DESKTOP
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Moonlight Tizen Installer
+          Comment=Install Moonlight on Samsung Tizen TVs
+          Exec="$DESKTOP_EXEC"
+          Icon=moonlight-tizen-installer
+          StartupWMClass=moonlight-tizen-installer
+          Terminal=false
+          Categories=Utility;
+          StartupNotify=true
+          DESKTOP
+          fi
+
+          exec "$APP_BINARY" "$@"
           EOF
           chmod 755 artifacts/appdir/AppRun
           test -x artifacts/appdir/usr/bin/MoonlightTizenInstaller
