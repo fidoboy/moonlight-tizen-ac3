@@ -19,15 +19,15 @@ Abra a [versão estável mais recente](https://github.com/fidoboy/moonlight-tize
 
 - **Windows 64 bits:** `MoonlightTizenInstaller.exe`
 - **Linux 64 bits:** `MoonlightTizenInstaller.AppImage`
-- **macOS Intel:** `MoonlightTizenInstaller-osx-x64.zip`
-- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.zip`
+- **macOS Intel:** `MoonlightTizenInstaller-osx-x64.dmg`
+- **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.dmg`
 
 O instalador é um arquivo executável independente que já inclui tudo o que você precisa, inclusive o próprio aplicativo TizenOS, que é transferido para a TV.
 
 ### 2. Execute o instalador
 
 - **Windows:** clique duas vezes no arquivo `.exe`. Se o Microsoft Defender SmartScreen exibir um aviso, confirme que o arquivo veio da release oficial do projeto antes de optar por executá-lo.
-- **macOS:** no Finder, abra **Downloads**, clique com o botão direito (ou Control-clique) no arquivo e escolha **Abrir**. Confirme se solicitado. Se o macOS já tiver bloqueado o app, acesse **Ajustes do Sistema → Privacidade e Segurança**, localize o aviso e escolha **Abrir Mesmo Assim**. Use Intel em Macs Intel e ARM64 em Macs Apple Silicon.
+- **macOS:** abra o arquivo `.dmg` baixado em **Downloads**. Na janela exibida, arraste **Moonlight Tizen Installer** para **Aplicativos** e ejete a imagem de disco montada. Abra o app pela pasta Aplicativos. Se o macOS bloquear o app, acesse **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**. Use a versão Intel em Macs Intel e ARM64 em Macs Apple Silicon.
 - **Linux:** abra um terminal na pasta de downloads e execute:
   ```bash
 chmod +x MoonlightTizenInstaller.AppImage
@@ -55,7 +55,7 @@ chmod +x MoonlightTizenInstaller.AppImage
 ### Solução de problemas
 
 - **A TV não é encontrada:** confirme que está ligada e na mesma rede local. Wi-Fi de convidados, isolamento de clientes ou VLANs separadas podem impedir a descoberta. Se solicitado, permita o acesso pelo firewall do computador.
-- **O macOS bloqueia o aplicativo:** use Finder → Control-clique → **Abrir**, ou **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**.
+- **O macOS bloqueia o app:** acesse **Ajustes do Sistema → Privacidade e Segurança → Abrir Mesmo Assim**.
 - **O Linux informa falta de permissão:** execute o comando `chmod +x` acima e abra o arquivo novamente.
 - **O assistente solicita Developer Mode:** siga as instruções, incluindo o valor de Host PC IP, e tente novamente.
 - **O TV-Store recebe o pacote, mas não conclui:** aceite a instalação diretamente na TV. Se o TV-Store não puder continuar, use a opção SDB oferecida pelo assistente.
