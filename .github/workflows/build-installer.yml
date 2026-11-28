@@ -257,9 +257,27 @@ jobs:
           plutil -lint "$contents/Info.plist"
           test -s "$contents/Resources/MoonlightTizenInstaller.icns"
           test -x "$contents/MacOS/MoonlightTizenInstaller"
-          ditto -c -k --sequesterRsrc --keepParent "$app" artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip
-          unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Info.plist'
-          unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Resources/MoonlightTizenInstaller.icns'
+          dmg_root="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-dmg"
+          mount_point="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-mount"
+          mkdir -p "$dmg_root" "$mount_point"
+          cp -a "$app" "$dmg_root/"
+
+          brew install create-dmg
+          create-dmg \
+            --volname "Moonlight Tizen Installer" \
+            --window-pos 200 120 \
+            --window-size 640 400 \
+            --icon-size 112 \
+            --icon "Moonlight Tizen Installer.app" 160 190 \
+            --app-drop-link 480 190 \
+            "artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg" \
+            "$dmg_root"
+
+          hdiutil verify "artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount_point" "artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg"
+          test -d "$mount_point/Moonlight Tizen Installer.app"
+          test -s "$mount_point/Moonlight Tizen Installer.app/Contents/Resources/MoonlightTizenInstaller.icns"
+          hdiutil detach "$mount_point"
 
       - name: Probe native macOS OpenGL context creation
         if: startsWith(matrix.rid, 'osx-')
@@ -342,7 +360,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          archive="artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip"
+          archive="artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg"
           extraction="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-test"
           mkdir -p "$extraction"
           ditto -x -k "$archive" "$extraction"
@@ -388,12 +406,12 @@ jobs:
             ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-cgl.log
           if-no-files-found: warn
           retention-days: 7
-      - name: Upload macOS application ZIP
+      - name: Upload macOS disk image
         if: startsWith(matrix.rid, 'osx-')
         uses: actions/upload-artifact@v6
         with:
           name: MoonlightTizenInstaller-${{ matrix.rid }}
-          path: artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip
+          path: artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg
           if-no-files-found: error
           retention-days: 30
 
