@@ -361,11 +361,12 @@ jobs:
         run: |
           set -euo pipefail
           archive="artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.dmg"
-          extraction="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-test"
-          mkdir -p "$extraction"
-          ditto -x -k "$archive" "$extraction"
+          mount_point="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-test"
+          mkdir -p "$mount_point"
+          hdiutil attach -readonly -nobrowse -mountpoint "$mount_point" "$archive"
+          trap 'hdiutil detach "$mount_point" >/dev/null 2>&1 || true' EXIT
 
-          app="$extraction/Moonlight Tizen Installer.app"
+          app="$mount_point/Moonlight Tizen Installer.app"
           test -d "$app"
           screenshot="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png"
           diagnostic_log="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-avalonia.log"
