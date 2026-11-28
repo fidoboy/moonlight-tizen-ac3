@@ -65,6 +65,15 @@ internal static class Program
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .With(new X11PlatformOptions { WmClass = "moonlight-tizen-installer" })
+            .With(new AvaloniaNativePlatformOptions
+            {
+                // Avoid OpenGL in macOS virtual machines; prefer Metal and fall back to software rendering.
+                RenderingMode = new[]
+                {
+                    AvaloniaNativeRenderingMode.Metal,
+                    AvaloniaNativeRenderingMode.Software
+                }
+            })
             .With(new MacOSPlatformOptions { ShowInDock = true })
             .WithInterFont()
             .LogToTrace();
