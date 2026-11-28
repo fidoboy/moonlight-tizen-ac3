@@ -274,26 +274,40 @@ jobs:
           app="$extraction/Moonlight Tizen Installer.app"
           test -d "$app"
           screenshot="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png"
+          diagnostic_log="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-avalonia.log"
+          rm -f "$screenshot" "$diagnostic_log"
 
           # Keep the Dock visible so the screenshot records the app icon while it runs.
           defaults write com.apple.dock autohide -bool false
           killall Dock || true
           sleep 2
 
+          # Pass the diagnostic path to the GUI app launched by LaunchServices.
+          launchctl setenv MOONLIGHT_INSTALLER_DIAGNOSTIC_LOG "$diagnostic_log"
+          launchctl setenv AVALONIA_TRACE 1
+
           # Open the packaged .app through Finder's LaunchServices integration.
           open "$app"
           sleep 12
+          launchctl unsetenv MOONLIGHT_INSTALLER_DIAGNOSTIC_LOG
+          launchctl unsetenv AVALONIA_TRACE
+
           /usr/sbin/screencapture -x "$screenshot"
           test -s "$screenshot"
+          test -s "$diagnostic_log"
+          echo "Avalonia diagnostic log:"
+          cat "$diagnostic_log"
           sips -g pixelWidth -g pixelHeight "$screenshot"
         timeout-minutes: 3
 
-      - name: Upload macOS startup screenshot
+      - name: Upload macOS startup diagnostics and screenshot
         if: always() && startsWith(matrix.rid, 'osx-')
         uses: actions/upload-artifact@v6
         with:
           name: MoonlightTizenInstaller-${{ matrix.rid }}-desktop
-          path: ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png
+          path: |
+            ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png
+            ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-avalonia.log
           if-no-files-found: warn
           retention-days: 7
       - name: Upload platform distribution
