@@ -145,22 +145,33 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y file desktop-file-utils
-          mkdir -p artifacts/dist artifacts/appdir
+          mkdir -p artifacts/dist artifacts/appdir/usr/bin artifacts/appdir/usr/share/applications artifacts/appdir/usr/share/icons/hicolor/512x512/apps
           python3 -m pip install --disable-pip-version-check Pillow
-          icon="artifacts/moonlight-tizen-installer.png"
+          icon="artifacts/appdir/usr/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
           python3 - <<'PY'
           from pathlib import Path
           from PIL import Image
 
           source = Path("Installer/src/MoonlightTizenInstaller/Assets/moonlight-logo.png")
-          target = Path("artifacts/moonlight-tizen-installer.png")
+          target = Path("artifacts/appdir/usr/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png")
           with Image.open(source) as image:
               image.convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS).save(target, format="PNG")
           with Image.open(target) as icon:
               if icon.size != (512, 512):
                   raise SystemExit(f"Unexpected Linux icon dimensions: {icon.size}")
           PY
-          desktop-file-validate Installer/packaging/linux/MoonlightTizenInstaller.desktop
+          install -m 755 artifacts/publish/MoonlightTizenInstaller artifacts/appdir/usr/bin/MoonlightTizenInstaller
+          install -m 644 Installer/packaging/linux/MoonlightTizenInstaller.desktop artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop
+          desktop-file-validate artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop
+          cat > artifacts/appdir/AppRun <<'EOF'
+          #!/bin/sh
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/bin/MoonlightTizenInstaller" "$@"
+          EOF
+          chmod 755 artifacts/appdir/AppRun
+          test -x artifacts/appdir/usr/bin/MoonlightTizenInstaller
+          test -s artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop
+          test -s "$icon"
           curl --fail --silent --show-error --location --retry 3 \
             https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
             --output linuxdeploy-x86_64.AppImage
@@ -168,18 +179,15 @@ jobs:
           LDAI_OUTPUT="$PWD/artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage" \
             APPIMAGE_EXTRACT_AND_RUN=1 ./linuxdeploy-x86_64.AppImage \
               --appdir artifacts/appdir \
-              --executable artifacts/publish/MoonlightTizenInstaller \
-              --desktop-file Installer/packaging/linux/MoonlightTizenInstaller.desktop \
-              --icon-file "$icon" \
               --output appimage
           chmod +x artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage
           file artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage
           artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage --appimage-extract
           test -x squashfs-root/AppRun
           test -x squashfs-root/usr/bin/MoonlightTizenInstaller
-          test -s squashfs-root/MoonlightTizenInstaller.desktop
-          test -s squashfs-root/moonlight-tizen-installer.png
-          desktop-file-validate squashfs-root/MoonlightTizenInstaller.desktop
+          test -s squashfs-root/usr/share/applications/MoonlightTizenInstaller.desktop
+          test -s squashfs-root/usr/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png
+          desktop-file-validate squashfs-root/usr/share/applications/MoonlightTizenInstaller.desktop
           rm -rf squashfs-root
           test "$(find artifacts/dist -maxdepth 1 -type f | wc -l)" -eq 1
 
