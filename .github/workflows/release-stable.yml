@@ -170,7 +170,7 @@ jobs:
             printf '| Platform | Download |\n'
             printf '|---|---|\n'
             printf '| Windows (x64) | [MoonlightTizenInstaller.exe](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.exe) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
-            printf '| Linux (x64) | [MoonlightTizenInstaller.tar.gz](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.tar.gz) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
+            printf '| Linux (x64) | [MoonlightTizenInstaller.AppImage](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller.AppImage) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
             printf '| macOS (Intel) | [MoonlightTizenInstaller-osx-x64.zip](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-x64.zip) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
             printf '| macOS (Apple Silicon) | [MoonlightTizenInstaller-osx-arm64.zip](https://github.com/%s/releases/download/%s/MoonlightTizenInstaller-osx-arm64.zip) |\n' "$GITHUB_REPOSITORY" "$RELEASE_TAG"
 
@@ -731,46 +731,92 @@ jobs:
           cp artifacts/publish/MoonlightTizenInstaller.exe artifacts/dist/
           test "$(find artifacts/dist -maxdepth 1 -type f | wc -l)" -eq 1
 
-      - name: Prepare Linux desktop distribution
+      - name: Build Linux AppImage
         if: matrix.rid == 'linux-x64'
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y desktop-file-utils
-          package="artifacts/package-linux/MoonlightTizenInstaller"
-          mkdir -p "$package/share/applications" "$package/share/icons/hicolor/512x512/apps" artifacts/dist
-          install -m 755 artifacts/publish/MoonlightTizenInstaller "$package/MoonlightTizenInstaller"
-          install -m 755 Installer/packaging/linux/install.sh "$package/install.sh"
-          install -m 644 Installer/packaging/linux/MoonlightTizenInstaller.desktop "$package/share/applications/MoonlightTizenInstaller.desktop"
+          sudo apt-get install -y file desktop-file-utils
+          mkdir -p artifacts/dist artifacts/appdir/usr/bin artifacts/appdir/usr/share/applications artifacts/appdir/usr/share/icons/hicolor/512x512/apps
           python3 -m pip install --disable-pip-version-check Pillow
+          icon="artifacts/appdir/usr/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
           python3 - <<'PY'
           from pathlib import Path
           from PIL import Image
 
           source = Path("Installer/src/MoonlightTizenInstaller/Assets/moonlight-logo.png")
-          target = Path("artifacts/package-linux/MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png")
+          target = Path("artifacts/appdir/usr/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png")
           with Image.open(source) as image:
               image.convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS).save(target, format="PNG")
           with Image.open(target) as icon:
               if icon.size != (512, 512):
                   raise SystemExit(f"Unexpected Linux icon dimensions: {icon.size}")
           PY
-          desktop-file-validate "$package/share/applications/MoonlightTizenInstaller.desktop"
-          file "$package/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
-          tar -czf artifacts/dist/MoonlightTizenInstaller.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
-          tar -tzf artifacts/dist/MoonlightTizenInstaller.tar.gz | grep -q 'MoonlightTizenInstaller/share/applications/MoonlightTizenInstaller.desktop'
-          tar -tzf artifacts/dist/MoonlightTizenInstaller.tar.gz | grep -q 'MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png'
-          test_home="$(mktemp -d)"
-          trap 'rm -rf "$test_home"' EXIT
-          HOME="$test_home" XDG_DATA_HOME="$test_home/.local/share" "$package/install.sh"
-          test -x "$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller"
-          test -L "$test_home/.local/bin/moonlight-tizen-installer"
-          test -s "$test_home/.local/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
-          desktop="$test_home/.local/share/applications/MoonlightTizenInstaller.desktop"
-          test -s "$desktop"
-          desktop-file-validate "$desktop"
-          grep -Fq "Exec=\"$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller\"" "$desktop"
+          install -m 755 artifacts/publish/MoonlightTizenInstaller artifacts/appdir/usr/bin/MoonlightTizenInstaller
+          install -m 644 Installer/packaging/linux/MoonlightTizenInstaller.desktop artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop
+          desktop-file-validate artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop
+          cat > artifacts/appdir/AppRun <<'EOF'
+          #!/bin/sh
+          set -eu
+
+          HERE="$(dirname "$(readlink -f "$0")")"
+          APP_BINARY="$HERE/usr/bin/MoonlightTizenInstaller"
+          ICON_SOURCE="$HERE/usr/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
+
+          # Register this AppImage with GNOME so its window can be matched to the dock launcher.
+          if [ -n "${APPIMAGE:-}" ] && [ -f "$ICON_SOURCE" ]; then
+            DESKTOP_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+            ICON_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/icons/hicolor/512x512/apps"
+            DESKTOP_FILE="$DESKTOP_DIR/moonlight-tizen-installer.desktop"
+            ICON_FILE="$ICON_DIR/moonlight-tizen-installer.png"
+
+            mkdir -p "$DESKTOP_DIR" "$ICON_DIR"
+            install -m 644 "$ICON_SOURCE" "$ICON_FILE"
+
+            APPIMAGE_PATH="$(readlink -f "$APPIMAGE")"
+            DESKTOP_EXEC="$(printf '%s' "$APPIMAGE_PATH" | sed 's/\\\\/\\\\\\\\/g; s/"/\\\\"/g; s/%/%%/g')"
+            cat > "$DESKTOP_FILE" <<DESKTOP
+          [Desktop Entry]
+          Version=1.0
+          Type=Application
+          Name=Moonlight Tizen Installer
+          Comment=Install Moonlight on Samsung Tizen TVs
+          Exec="$DESKTOP_EXEC"
+          Icon=moonlight-tizen-installer
+          StartupWMClass=moonlight-tizen-installer
+          Terminal=false
+          Categories=Utility;
+          StartupNotify=true
+          DESKTOP
+          fi
+
+          exec "$APP_BINARY" "$@"
+          EOF
+          chmod 755 artifacts/appdir/AppRun
+          test -x artifacts/appdir/usr/bin/MoonlightTizenInstaller
+          test -s artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop
+          test -s "$icon"
+          curl --fail --silent --show-error --location --retry 3 \\
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \\
+            --output linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          LDAI_OUTPUT="$PWD/artifacts/dist/MoonlightTizenInstaller.AppImage" \\
+            APPIMAGE_EXTRACT_AND_RUN=1 ./linuxdeploy-x86_64.AppImage \\
+              --appdir artifacts/appdir \\
+              --desktop-file artifacts/appdir/usr/share/applications/MoonlightTizenInstaller.desktop \\
+              --icon-file "$icon" \\
+              --output appimage
+          chmod +x artifacts/dist/MoonlightTizenInstaller.AppImage
+          file artifacts/dist/MoonlightTizenInstaller.AppImage
+          artifacts/dist/MoonlightTizenInstaller.AppImage --appimage-extract
+          test -x squashfs-root/AppRun
+          test -x squashfs-root/usr/bin/MoonlightTizenInstaller
+          test -s squashfs-root/usr/share/applications/MoonlightTizenInstaller.desktop
+          test -s squashfs-root/usr/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png
+          desktop-file-validate squashfs-root/usr/share/applications/MoonlightTizenInstaller.desktop
+          rm -rf squashfs-root
+          test "$(find artifacts/dist -maxdepth 1 -type f | wc -l)" -eq 1
 
       - name: Prepare macOS application bundle
         if: startsWith(matrix.rid, 'osx-')
@@ -877,7 +923,7 @@ jobs:
           cp release-inputs/Moonlight.wgt dist/Moonlight.wgt
           cp release-inputs/Moonlight-ForceGM.wgt dist/Moonlight-ForceGM.wgt
           cp installer-win-x64/MoonlightTizenInstaller.exe dist/MoonlightTizenInstaller.exe
-          cp installer-linux-x64/MoonlightTizenInstaller.tar.gz dist/MoonlightTizenInstaller.tar.gz
+          cp installer-linux-x64/MoonlightTizenInstaller.AppImage dist/MoonlightTizenInstaller.AppImage
           cp installer-osx-x64/MoonlightTizenInstaller-osx-x64.zip dist/MoonlightTizenInstaller-osx-x64.zip
           cp installer-osx-arm64/MoonlightTizenInstaller-osx-arm64.zip dist/MoonlightTizenInstaller-osx-arm64.zip
           cp release-inputs/release-notes.md "$RUNNER_TEMP/release-notes.md"
@@ -902,7 +948,7 @@ jobs:
             dist/Moonlight.wgt
             dist/Moonlight-ForceGM.wgt
             dist/MoonlightTizenInstaller.exe
-            dist/MoonlightTizenInstaller.tar.gz
+            dist/MoonlightTizenInstaller.AppImage
             dist/MoonlightTizenInstaller-osx-x64.zip
             dist/MoonlightTizenInstaller-osx-arm64.zip
           body_path: ${{ runner.temp }}/release-notes.md
