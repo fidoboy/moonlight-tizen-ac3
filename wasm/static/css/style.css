@@ -2436,7 +2436,7 @@ body[data-color-theme="black-orange"] #background-layer {
     min-width: 0;
 }
 .performanceStatsOpacityMenu {
-    height: 40px !important;
+    height: 60px !important;
 }
 
 .performanceStatsOpacityMenu > #performanceStatsOpacityLowestValue,
