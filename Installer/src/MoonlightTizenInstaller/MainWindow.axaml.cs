@@ -51,6 +51,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Closed += (_, _) => CleanupRetryPackage();
         InstallerLocalization.Apply(this);
+        ApplyInstallerFooterVersion();
         if (!InstallerLocalization.HasSupportedSystemLocale)
         {
             if (this.FindControl<StackPanel>("WelcomePage") is { } welcome)
@@ -78,6 +79,16 @@ public sealed partial class MainWindow : Window
         {
             SetWizardStep(1);
         };
+    }
+
+    private void ApplyInstallerFooterVersion()
+    {
+        var version = typeof(MainWindow).Assembly.GetName().Version?.ToString(3);
+        if (string.IsNullOrWhiteSpace(version))
+            return;
+
+        if (this.FindControl<TextBlock>("InstallerFooterLabel") is { } footer)
+            footer.Text = $"{InstallerLocalization.T("Moonlight Tizen · Installer")} v{version}";
     }
 
     private void InitializeComponent()
