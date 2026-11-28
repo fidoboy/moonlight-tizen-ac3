@@ -23,6 +23,24 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - Minor cosmetic interface changes.
 - **Early WASM/EMSS compatibility detection:** Added early compatibility checks as groundwork for planned Tizen 5.0 backward compatibility, which aims to expand the supported device range below the current Tizen 5.5 baseline.
 
+## v1.3.1
+
+### Added
+- **Live stream indicators in the performance overlay:** Added compact visual indicators for the active streaming engine, negotiated video codec and HDR, audio codec, decoding mode and channel layout, network connection type, and confirmed Game Mode. Each indicator lights up according to the effective state detected or negotiated for the current streaming session, rather than merely reflecting the saved preferences.
+- **Performance statistics overlay opacity:** Added an adjustable opacity slider (0–100%) for the overlay's background panel, with a default value of 70%. The setting is saved independently of the main performance statistics toggle and does not affect the opacity of the text or graphs.
+
+### Changed
+- **Two-package distribution restored:** Restored the separate standard and ForceGM Moonlight packages. The standard package leaves Game Mode handling unchanged, while the ForceGM variant forces Game Mode for TV models that require it to provide correct streaming performance. This lets users choose the appropriate package for their TV instead of applying ForceGM universally.
+- **Stream shutdown sequence:** Made the closing transition report its work in a visible, sequential status flow. WMP service termination, Ambilight shutdown, local audio restoration, optional remote application closure, and return to the Apps view are handled in order. Each operation has a bounded wait; failures and timeouts are recorded without preventing the interface from recovering.
+- **Closing transition feedback:** Ensure a status is visible as soon as the closing transition appears, avoiding an initially blank progress screen. Preserve the established local audio restoration message.
+- **Remote application lifecycle:** Restrict host-side application closure to the startup-failure and orderly-shutdown paths where it is appropriate, and honor the corresponding setting. Do not send a remote quit request for failures after playback has begun or when the setting is disabled.
+- **Moonlight Common C upstream improvements (issue [#63](https://github.com/fidoboy/moonlight-tizen-ac3/issues/63)):** Integrated the applicable upstream improvements into the Tizen fork:
+  - Improved video depacketization reliability through safer concurrent access to decoder state and frame data, more robust frame-loss and refresh handling, and safer queue and shutdown processing.
+  - Reduced the risk of network-statistics queries blocking stream processing by using non-blocking access to ENet synchronization and retaining the latest available round-trip-time estimate.
+  - Improved timing reliability on POSIX systems by using a monotonic clock where supported.
+  - Enabled the C11 language features required by the library's atomic and synchronization code.
+  - Preserved the fork's Tizen-specific platform, renderer, networking and Dolby Digital/AC-3/E-AC-3 adaptations.
+
 ### Fixed
 - **Remote application shutdown from Smart Hub shortcuts:** Fixed an issue that prevented the remote application's shutdown request from being completed correctly, even when the corresponding setting was enabled, for streams launched from Smart Hub shortcuts using the native WMP engine. WMP now remains available until Moonlight has completed the remote shutdown request and all pending native HTTP operations.
 - **Automatic optimal bitrate setting:** Fixed the automatic optimal-bitrate mode continuing to overwrite the manually configured bitrate after the mode had been disabled.
@@ -59,6 +77,7 @@ All notable changes to the independently maintained fidoboy Moonlight Tizen fork
 - **Streaming with audio output disabled:** Kept the GameStream audio transport and UDP ping active while discarding received audio packets without decoding or routing them to a playback backend.
 - **Settings page navigation and control visibility:** Fixed navigation issues that could leave controls at the bottom of the Moonlight settings page hidden or inaccessible.
 - **Host status icon during startup:** Fixed an initialization issue that could leave a host card without its status icon when the host did not respond to a request in time.
+
 
 ## v1.2.3
 
