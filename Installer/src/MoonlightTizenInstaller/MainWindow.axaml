@@ -394,7 +394,7 @@
             BorderBrush="#26344C" BorderThickness="0,1,0,0">
       <Grid ColumnDefinitions="*,Auto,Auto,Auto">
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="14">
-          <TextBlock Text="Moonlight Tizen · Installer" Foreground="#71839F" VerticalAlignment="Center" FontSize="12" />
+          <TextBlock Name="InstallerFooterLabel" Text="Moonlight Tizen · Installer" Foreground="#71839F" VerticalAlignment="Center" FontSize="12" />
           <Button Classes="footer-link" Click="OnWebsiteClick">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <Path Data="M 12,2 A 10,10 0 1 0 12,22 A 10,10 0 1 0 12,2 M 2,12 L 22,12 M 12,2 C 7,7 7,17 12,22 M 12,2 C 17,7 17,17 12,22" Width="14" Height="14" Stretch="Uniform" Stroke="#71839F" StrokeThickness="1.5" />
