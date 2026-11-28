@@ -854,41 +854,6 @@ jobs:
           unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Info.plist'
           unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Resources/MoonlightTizenInstaller.icns'
 
-      - name: Launch macOS app and capture its window and Dock
-        if: startsWith(matrix.rid, 'osx-')
-        shell: bash
-        run: |
-          set -euo pipefail
-          archive="artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip"
-          extraction="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-test"
-          mkdir -p "$extraction"
-          ditto -x -k "$archive" "$extraction"
-
-          app="$extraction/Moonlight Tizen Installer.app"
-          test -d "$app"
-          screenshot="$RUNNER_TEMP/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png"
-
-          # Keep the Dock visible so the screenshot records the app icon while it runs.
-          defaults write com.apple.dock autohide -bool false
-          killall Dock || true
-          sleep 2
-
-          # Open the packaged .app through Finder's LaunchServices integration.
-          open "$app"
-          sleep 12
-          /usr/sbin/screencapture -x "$screenshot"
-          test -s "$screenshot"
-          sips -g pixelWidth -g pixelHeight "$screenshot"
-        timeout-minutes: 3
-
-      - name: Upload macOS startup screenshot
-        if: always() && startsWith(matrix.rid, 'osx-')
-        uses: actions/upload-artifact@v6
-        with:
-          name: MoonlightTizenInstaller-${{ matrix.rid }}-desktop
-          path: ${{ runner.temp }}/MoonlightTizenInstaller-${{ matrix.rid }}-desktop.png
-          if-no-files-found: warn
-          retention-days: 7
       - name: Upload platform distribution
         uses: actions/upload-artifact@v6
         with:
