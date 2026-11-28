@@ -65,6 +65,7 @@ internal static class Program
         AppBuilder.Configure<App>()
             .UsePlatformDetect()
             .With(new X11PlatformOptions { WmClass = "moonlight-tizen-installer" })
+            .With(new MacOSPlatformOptions { ShowInDock = true })
             .WithInterFont()
             .LogToTrace();
 }
