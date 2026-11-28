@@ -34,7 +34,7 @@ jobs:
   build:
     needs: localization
     name: Build installer (${{ matrix.rid }})
-    runs-on: ${{ matrix.rid == 'win-x64' && 'windows-latest' || startsWith(matrix.rid, 'osx-') && 'macos-latest' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.rid == 'win-x64' && 'windows-latest' || startsWith(matrix.rid, 'osx-') && 'macos-latest' || 'ubuntu-22.04' }}
     strategy:
       fail-fast: false
       matrix:
@@ -138,46 +138,51 @@ jobs:
           cp artifacts/publish/MoonlightTizenInstaller.exe artifacts/dist/
           test "$(find artifacts/dist -maxdepth 1 -type f | wc -l)" -eq 1
 
-      - name: Prepare Linux desktop distribution
+      - name: Build Linux AppImage
         if: matrix.rid == 'linux-x64'
         shell: bash
         run: |
           set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y desktop-file-utils
-          package="artifacts/package-linux/MoonlightTizenInstaller"
-          mkdir -p "$package/share/applications" "$package/share/icons/hicolor/512x512/apps" artifacts/dist
-          install -m 755 artifacts/publish/MoonlightTizenInstaller "$package/MoonlightTizenInstaller"
-          install -m 755 Installer/packaging/linux/install.sh "$package/install.sh"
-          install -m 644 Installer/packaging/linux/MoonlightTizenInstaller.desktop "$package/share/applications/MoonlightTizenInstaller.desktop"
+          sudo apt-get install -y file desktop-file-utils
+          mkdir -p artifacts/dist artifacts/appdir
           python3 -m pip install --disable-pip-version-check Pillow
+          icon="artifacts/moonlight-tizen-installer.png"
           python3 - <<'PY'
           from pathlib import Path
           from PIL import Image
 
           source = Path("Installer/src/MoonlightTizenInstaller/Assets/moonlight-logo.png")
-          target = Path("artifacts/package-linux/MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png")
+          target = Path("artifacts/moonlight-tizen-installer.png")
           with Image.open(source) as image:
               image.convert("RGBA").resize((512, 512), Image.Resampling.LANCZOS).save(target, format="PNG")
           with Image.open(target) as icon:
               if icon.size != (512, 512):
                   raise SystemExit(f"Unexpected Linux icon dimensions: {icon.size}")
           PY
-          desktop-file-validate "$package/share/applications/MoonlightTizenInstaller.desktop"
-          file "$package/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
-          tar -czf artifacts/dist/MoonlightTizenInstaller.tar.gz -C artifacts/package-linux MoonlightTizenInstaller
-          tar -tzf artifacts/dist/MoonlightTizenInstaller.tar.gz | grep -q 'MoonlightTizenInstaller/share/applications/MoonlightTizenInstaller.desktop'
-          tar -tzf artifacts/dist/MoonlightTizenInstaller.tar.gz | grep -q 'MoonlightTizenInstaller/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png'
-          test_home="$(mktemp -d)"
-          trap 'rm -rf "$test_home"' EXIT
-          HOME="$test_home" XDG_DATA_HOME="$test_home/.local/share" "$package/install.sh"
-          test -x "$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller"
-          test -L "$test_home/.local/bin/moonlight-tizen-installer"
-          test -s "$test_home/.local/share/icons/hicolor/512x512/apps/moonlight-tizen-installer.png"
-          desktop="$test_home/.local/share/applications/MoonlightTizenInstaller.desktop"
-          test -s "$desktop"
-          desktop-file-validate "$desktop"
-          grep -Fq "Exec=\"$test_home/.local/share/moonlight-tizen-installer/MoonlightTizenInstaller\"" "$desktop"
+          desktop-file-validate Installer/packaging/linux/MoonlightTizenInstaller.desktop
+          curl --fail --silent --show-error --location --retry 3 \
+            https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage \
+            --output linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          APPIMAGE_EXTRACT_AND_RUN=1 ./linuxdeploy-x86_64.AppImage \
+            --appdir artifacts/appdir \
+            --executable artifacts/publish/MoonlightTizenInstaller \
+            --desktop-file Installer/packaging/linux/MoonlightTizenInstaller.desktop \
+            --icon-file "$icon" \
+            --output appimage
+          appimage="$(find . -maxdepth 1 -type f -name '*.AppImage' -print -quit)"
+          test -n "$appimage"
+          install -m 755 "$appimage" artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage
+          file artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage
+          APPIMAGE_EXTRACT_AND_RUN=1 artifacts/dist/MoonlightTizenInstaller-x86_64.AppImage --appimage-extract
+          test -x squashfs-root/AppRun
+          test -x squashfs-root/usr/bin/MoonlightTizenInstaller
+          test -s squashfs-root/MoonlightTizenInstaller.desktop
+          test -s squashfs-root/moonlight-tizen-installer.png
+          desktop-file-validate squashfs-root/MoonlightTizenInstaller.desktop
+          rm -rf squashfs-root
+          test "$(find artifacts/dist -maxdepth 1 -type f | wc -l)" -eq 1
 
       - name: Prepare macOS application bundle
         if: startsWith(matrix.rid, 'osx-')
