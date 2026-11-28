@@ -37,39 +37,10 @@ internal static class Program
 
     private static void ConfigureLinuxOpenGlCompatibility()
     {
-        if (!OperatingSystem.IsLinux() ||
-            Environment.GetEnvironmentVariable(GlxBlacklistOverride) is not null)
+        if (OperatingSystem.IsLinux() &&
+            Environment.GetEnvironmentVariable(GlxBlacklistOverride) is null)
         {
-            return;
-        }
-
-        const string drmPath = "/sys/class/drm";
-        if (!Directory.Exists(drmPath))
-            return;
-
-        try
-        {
-            foreach (var cardPath in Directory.EnumerateDirectories(drmPath, "card*"))
-            {
-                var driverPath = Path.Combine(cardPath, "device", "driver");
-                if (!Directory.Exists(driverPath))
-                    continue;
-
-                var driver = new DirectoryInfo(driverPath).ResolveLinkTarget(returnFinalTarget: true);
-                if (string.Equals(driver?.Name, "vmwgfx", StringComparison.Ordinal))
-                {
-                    Environment.SetEnvironmentVariable(GlxBlacklistOverride, "1");
-                    return;
-                }
-            }
-        }
-        catch (IOException)
-        {
-            // Keep the default Avalonia renderer blacklist if DRM detection is unavailable.
-        }
-        catch (UnauthorizedAccessException)
-        {
-            // Keep the default Avalonia renderer blacklist if DRM detection is unavailable.
+            Environment.SetEnvironmentVariable(GlxBlacklistOverride, "1");
         }
     }
 
