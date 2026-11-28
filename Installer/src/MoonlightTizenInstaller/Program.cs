@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Avalonia;
 
 namespace MoonlightTizenInstaller;
@@ -5,6 +6,11 @@ namespace MoonlightTizenInstaller;
 internal static class Program
 {
     private const string GlxBlacklistOverride = "AVALONIA_GLX_IGNORE_RENDERER_BLACKLIST";
+    private const string DiagnosticLogEnvironmentVariable = "MOONLIGHT_INSTALLER_DIAGNOSTIC_LOG";
+
+    private static readonly string DiagnosticLogPath =
+        Environment.GetEnvironmentVariable(DiagnosticLogEnvironmentVariable)
+        ?? Path.Combine(Path.GetTempPath(), "MoonlightTizenInstaller-avalonia.log");
 
     private static readonly string StartupErrorLogPath = Path.Combine(
         Path.GetTempPath(),
@@ -13,6 +19,7 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        InitializeDiagnostics();
         ConfigureLinuxOpenGlCompatibility();
 
         AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
@@ -35,6 +42,23 @@ internal static class Program
         }
     }
 
+    private static void InitializeDiagnostics()
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(DiagnosticLogPath)!);
+            Trace.Listeners.Add(new TextWriterTraceListener(DiagnosticLogPath));
+            Trace.AutoFlush = true;
+            Trace.WriteLine($"[{DateTimeOffset.Now:O}] Moonlight Tizen Installer starting.");
+            Trace.WriteLine($"OS: {Environment.OSVersion}; Architecture: {System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}");
+            Trace.WriteLine($"Avalonia diagnostics enabled. Log: {DiagnosticLogPath}");
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine($"Unable to initialize diagnostic log: {exception}");
+        }
+    }
+
     private static void ConfigureLinuxOpenGlCompatibility()
     {
         if (OperatingSystem.IsLinux() &&
@@ -51,9 +75,10 @@ internal static class Program
 
         try
         {
-            File.AppendAllText(
-                StartupErrorLogPath,
-                $"[{DateTimeOffset.Now:O}]{Environment.NewLine}{exception}{Environment.NewLine}{Environment.NewLine}");
+            var diagnostic = $"[{DateTimeOffset.Now:O}]{Environment.NewLine}{exception}{Environment.NewLine}{Environment.NewLine}";
+            File.AppendAllText(StartupErrorLogPath, diagnostic);
+            Trace.WriteLine(diagnostic);
+            Trace.Flush();
         }
         catch
         {
