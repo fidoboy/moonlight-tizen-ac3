@@ -114,6 +114,7 @@ public sealed partial class MainWindow : Window
         InstallerLocalization.SelectLocale(index);
         _manualLanguageSelected = true;
         InstallerLocalization.Apply(this);
+        ApplyInstallerFooterVersion();
         if (this.FindControl<Button>("WizardNextButton") is { } startButton)
             startButton.IsEnabled = true;
     }
