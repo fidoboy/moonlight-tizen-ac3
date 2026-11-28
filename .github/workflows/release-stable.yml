@@ -854,7 +854,17 @@ jobs:
           unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Info.plist'
           unzip -l artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip | grep -q 'Contents/Resources/MoonlightTizenInstaller.icns'
 
+      - name: Upload macOS application ZIP
+        if: startsWith(matrix.rid, 'osx-')
+        uses: actions/upload-artifact@v6
+        with:
+          name: MoonlightTizenInstaller-${{ matrix.rid }}
+          path: artifacts/dist/MoonlightTizenInstaller-${{ matrix.rid }}.zip
+          if-no-files-found: error
+          retention-days: 1
+
       - name: Upload platform distribution
+        if: ${{ !startsWith(matrix.rid, 'osx-') }}
         uses: actions/upload-artifact@v6
         with:
           name: MoonlightTizenInstaller-${{ matrix.rid }}
