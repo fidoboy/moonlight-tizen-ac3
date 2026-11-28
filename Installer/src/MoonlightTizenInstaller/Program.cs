@@ -67,10 +67,11 @@ internal static class Program
             .With(new X11PlatformOptions { WmClass = "moonlight-tizen-installer" })
             .With(new AvaloniaNativePlatformOptions
             {
-                // Avoid OpenGL in macOS virtual machines; prefer Metal and fall back to software rendering.
+                // StarFieldControl uses OpenGlControlBase, so macOS must provide an OpenGL context.
+                // Keep software rendering as a fallback for systems where OpenGL cannot initialize.
                 RenderingMode = new[]
                 {
-                    AvaloniaNativeRenderingMode.Metal,
+                    AvaloniaNativeRenderingMode.OpenGl,
                     AvaloniaNativeRenderingMode.Software
                 }
             })
