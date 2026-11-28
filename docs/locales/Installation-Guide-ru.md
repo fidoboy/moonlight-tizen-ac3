@@ -18,7 +18,7 @@ description: "Способы установки Moonlight Tizen на телев�
 Откройте [последний стабильный релиз](https://github.com/fidoboy/moonlight-tizen-ac3/releases/latest) и скачайте из раздела **Assets** нужный файл:
 
 - **Windows 64-bit:** `MoonlightTizenInstaller.exe`
-- **Linux 64-bit:** `MoonlightTizenInstaller.tar.gz`
+- **Linux 64-bit:** `MoonlightTizenInstaller.AppImage`
 - **macOS Intel:** `MoonlightTizenInstaller-osx-x64.zip`
 - **macOS Apple Silicon:** `MoonlightTizenInstaller-osx-arm64.zip`
 
@@ -30,11 +30,9 @@ description: "Способы установки Moonlight Tizen на телев�
 - **macOS:** откройте в Finder папку **Загрузки**, щёлкните файл правой кнопкой мыши (или удерживая Control) и выберите **Открыть**. Подтвердите действие при запросе. Если macOS заблокировала приложение, откройте **Системные настройки → Конфиденциальность и безопасность**, найдите уведомление и нажмите **Открыть в любом случае**. Версия Intel предназначена для Mac с Intel, ARM64 — для Apple Silicon.
 - **Linux:** откройте терминал в папке загрузок и выполните:
   ```bash
-  tar -xzf MoonlightTizenInstaller.tar.gz
-  cd MoonlightTizenInstaller
-  chmod +x install.sh
-  ./install.sh
-  ```
+chmod +x MoonlightTizenInstaller.AppImage
+./MoonlightTizenInstaller.AppImage
+```
   Также можно включить в файловом менеджере параметр **Разрешить выполнение файла как программы**, если он доступен, и открыть файл.
 
 ### 3. Следуйте мастеру установки
