@@ -22,7 +22,7 @@ Ouvrez la [dernière version stable](https://github.com/fidoboy/moonlight-tizen-
 - **macOS Intel :** `MoonlightTizenInstaller-osx-x64.dmg`
 - **macOS Apple Silicon :** `MoonlightTizenInstaller-osx-arm64.dmg`
 
-L’installateur est un fichier exécutable autonome qui contient déjà tout le nécessaire, y compris l’application TizenOS elle-même, qui est transférée sur votre téléviseur.
+Les installateurs Windows et Linux sont des exécutables autonomes. Chaque DMG macOS contient le bundle de l’application ; ouvrez l’image disque et copiez l’application dans Applications.
 
 ### 2. Lancer l’installateur
 
