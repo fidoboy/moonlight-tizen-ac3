@@ -2467,32 +2467,6 @@ body[data-color-theme="black-orange"] #background-layer {
     max-width: 100%;
     margin: 0;
 }
-/* Keep both bitrate endpoints outside the slider's flexible width calculation. */
-.videoBitrateMenu > #bitrateLowestValue,
-.videoBitrateMenu > #bitrateHighestValue {
-    flex: 0 0 auto;
-    white-space: nowrap;
-}
-/* MDL gives the generated slider wrapper an oversized intrinsic width.
-   Let it consume only the space remaining between the endpoint labels. */
-.videoBitrateMenu > .mdl-slider__container {
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    flex: 1 1 0px;
-    width: auto !important;
-    min-width: 0;
-    max-width: 100%;
-    margin: 0;
-}
-.videoBitrateMenu > .mdl-slider__container > #bitrateSlider {
-    box-sizing: border-box;
-    display: block;
-    width: 100% !important;
-    min-width: 0;
-    max-width: 100%;
-    margin: 0;
-}
 #bitrateLowestValue.hovered, #bitrateHighestValue.hovered,
 #performanceStatsOpacityLowestValue.hovered, #performanceStatsOpacityHighestValue.hovered,
 #jitterLowestValue.hovered, #jitterHighestValue.hovered {
