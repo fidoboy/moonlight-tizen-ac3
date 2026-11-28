@@ -52,8 +52,10 @@ internal static class Program
             foreach (var cardPath in Directory.EnumerateDirectories(drmPath, "card*"))
             {
                 var driverPath = Path.Combine(cardPath, "device", "driver");
-                var driver = new DirectoryInfo(driverPath).ResolveLinkTarget(returnFinalTarget: true);
+                if (!Directory.Exists(driverPath))
+                    continue;
 
+                var driver = new DirectoryInfo(driverPath).ResolveLinkTarget(returnFinalTarget: true);
                 if (string.Equals(driver?.Name, "vmwgfx", StringComparison.Ordinal))
                 {
                     Environment.SetEnvironmentVariable(GlxBlacklistOverride, "1");
